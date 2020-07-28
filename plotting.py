@@ -79,6 +79,40 @@ def plot_curves(curves_dict, labels_dict={'x':'Epochs','y':'Loss'},
         if not showplot:
             plt.close()
 
+def plot_states(dataset, filename=None):
+
+    states = np.load(dataset)['state']
+   
+    colours=[#"forestgreen", 
+             #"yellowgreen", #alternate ones are paired (light versions)
+             "blueviolet",
+             #"mediumorchid",
+             "orangered",
+             #"lightsalmon"
+             "royalblue",
+             #"lightsteelblue"
+             ]
+    plt.figure()
+    ax = plt.axes()
+    ax.set_facecolor("gainsboro")
+    # plt.title('Fooo', fontsize=22)
+    plt.xlabel('Time')
+    plt.ylabel('Population')
+    
+    # Lighten borders
+    plt.gca().spines["top"].set_alpha(0.3)
+    plt.gca().spines["bottom"].set_alpha(.3)
+    plt.gca().spines["right"].set_alpha(0.3)
+    plt.gca().spines["left"].set_alpha(.3)
+    plt.grid(alpha=0.3)
+
+    names = ['Species 1', 'Species 2', 'Species 3']
+    for i, species in enumerate(states[0].transpose()):
+        plt.plot(species, label=names[i],color=colours[i], linewidth=2)
+    plt.legend()
+    if filename is not None:
+        plt.savefig(filename)
+
 def plot_sines(generated, groundtruth, filename):
 
     markers=["o",
