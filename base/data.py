@@ -1,21 +1,22 @@
-from typing import Callable
-from darts import TimeSeries
+from typing import Callable, Optional
 from typing import Sequence
 
 import numpy as np
+import tqdm
+from darts import TimeSeries
 from dysts.flows import DynSys
 
-from utils import tensor_to_time_series, time_series_to_tensor
+from base.utils import tensor_to_time_series, time_series_to_tensor
 
 
 def generate_trajectories(
         chaos_model: DynSys,
-        n_trajectories: int,
+        trajectory_count: int,
         trajectory_length: int,
         ic_fun: Callable[[], np.ndarray]
 ) -> Sequence[TimeSeries]:
     trajectories = []
-    for n in range(n_trajectories):
+    for _ in tqdm.tqdm(range(trajectory_count)):
         chaos_model.ic = ic_fun()
         trajectories.append(
             TimeSeries.from_values(
@@ -39,14 +40,14 @@ def load_or_generate_and_save(
         path: str,
         chaos_model: DynSys,
         data_params: dict,
-        ic_fun: Callable[[], np.ndarray]
+        ic_fun: Optional[Callable[[], np.ndarray]] = None
 ) -> Sequence[TimeSeries]:
     try:
         trajectories = load_trajectories(path)
     except OSError:
         trajectories = generate_trajectories(
             chaos_model,
-            n_trajectories=data_params['n_trajectories'],
+            trajectory_count=data_params['trajectory_count'],
             trajectory_length=data_params['trajectory_length'],
             ic_fun=ic_fun
         )

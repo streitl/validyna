@@ -1,8 +1,8 @@
 from typing import Sequence
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from darts import TimeSeries
 from darts.models.forecasting.torch_forecasting_model import TorchForecastingModel
 
@@ -19,10 +19,10 @@ def plot_3d_trajectories(trajectories: Sequence[Sequence[TimeSeries]], labels: S
     xmin, ymin, zmin = np.concatenate(arrays, axis=1).min(axis=(0, 1))
     xmax, ymax, zmax = np.concatenate(arrays, axis=1).max(axis=(0, 1))
 
-    fig = plt.figure(figsize=(20, 16))
+    w = 4
+    h = int(np.ceil(n_plots / w))
 
-    h = int(np.sqrt(n_plots))
-    w = h if h * h == n_plots else h + 1
+    fig = plt.figure(figsize=(h * 4, w * 4))
 
     for i in range(n_plots):
         ax = fig.add_subplot(h, w, i + 1, projection='3d')
@@ -49,16 +49,21 @@ def plot_3d_predictions_vs_ground_truth(
         models: Sequence[TorchForecastingModel],
         ground_truth: Sequence[TimeSeries],
         data_params: dict,
-        model_params: dict
+        model_params: dict,
+        n_plots: int
 ) -> [Sequence[Sequence[TimeSeries]]]:
-    start = [ts[pd.RangeIndex(0, model_params['network_in'])] for ts in ground_truth]
-    rest = [ts[pd.RangeIndex(model_params['network_in'], data_params['trajectory_length'])] for ts in ground_truth]
+
+    network_in = model_params['common']['input_chunk_length']
+    trajectory_length = data_params['trajectory_length']
+
+    start = [ts[pd.RangeIndex(0, network_in)] for ts in ground_truth]
+    rest = [ts[pd.RangeIndex(network_in, trajectory_length)] for ts in ground_truth]
     predictions = []
     labels = []
     for model in models:
-        predictions.append(model.predict(n=data_params['trajectory_length'] - model_params['network_in'], series=start))
+        predictions.append(model.predict(n=trajectory_length-network_in, series=start))
         labels.append(model.__class__.__name__)
 
-    fig = plot_3d_trajectories([start, rest] + predictions, labels=['input', 'ground truth'] + labels, n_plots=16)
+    fig = plot_3d_trajectories([start, rest] + predictions, labels=['input', 'ground truth'] + labels, n_plots=n_plots)
 
     return predictions, fig
