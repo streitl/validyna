@@ -6,7 +6,7 @@ from torch.optim import AdamW
 from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
 
 
-class ClassifierLightning(pl.LightningModule):
+class LightningClassifier(pl.LightningModule):
 
     def __init__(
             self,
@@ -42,7 +42,7 @@ class ClassifierLightning(pl.LightningModule):
         return AdamW(self.parameters(), lr=self.lr)
 
 
-class FeaturizerLightning(pl.LightningModule):
+class LightningFeaturizer(pl.LightningModule):
 
     def __init__(
             self,
@@ -78,7 +78,7 @@ class FeaturizerLightning(pl.LightningModule):
         return AdamW(self.parameters(), lr=self.lr)
 
 
-class ForecasterLightning(pl.LightningModule):
+class LightningForecaster(pl.LightningModule):
     def __init__(
             self,
             model: MultiTaskTimeSeriesModel,

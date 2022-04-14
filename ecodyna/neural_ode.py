@@ -4,6 +4,7 @@ from torch.optim import AdamW
 from torchdyn.core import NeuralODE
 
 
+# TODO
 class PLNeuralODE(pl.LightningModule):
 
     def __init__(self, f: nn.Module):

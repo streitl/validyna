@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, Optional
 
 import torch
 import torch.nn.functional as F
@@ -115,6 +115,9 @@ class MultiTaskLSTM(MultiTaskTimeSeriesModel):
             n_layers: int,
             n_in: int,
             series_dim: int,
+            n_classes: Optional[int] = None,
+            n_features: Optional[int] = None,
+            n_out: Optional[int] = None,
             forecast_type: Literal['n_out', 'recurrent'] = 'n_out',
             *args, **kwargs
     ):
@@ -129,13 +132,21 @@ class MultiTaskLSTM(MultiTaskTimeSeriesModel):
 
         self.forecast_type = forecast_type
 
-        # LSTM is a natural featurizer
-        # TODO should we use a featurizer layer to allow n_features != n_hidden?
-        self.prepare_for_featurization(n_features=n_hidden)
-
         self.classifier = None
         self.forecaster_n_out = None
         self.forecaster_one = None
+
+        # LSTM is a natural featurizer
+        # TODO should we use a featurizer layer to allow n_features != n_hidden?
+        if n_features is not None:
+            assert n_features == n_hidden, f'The current {self.name()} only accepts n_features == n_hidden'
+        self.prepare_for_featurization(n_features=n_hidden)
+
+        if n_classes is not None:
+            self.prepare_for_classification(n_classes=n_classes)
+
+        if n_out is not None:
+            self.prepare_for_forecasting(n_out=n_out)
 
     def prepare_for_classification(self, n_classes):
         super().prepare_for_classification(n_classes)
@@ -204,17 +215,25 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
             n_in: int,
             series_dim: int,
             n_out: int,
+            n_classes: Optional[int] = None,
+            n_features: Optional[int] = None,
             *args, **kwargs
     ):
         super().__init__(n_in=n_in, series_dim=series_dim)
 
         self.nbeats = NBEATS(n_in=n_in * series_dim, n_out=n_out * series_dim, *args, **kwargs)
 
-        # LSTM is a natural forecaster
+        # N-BEATS is a natural forecaster
         self.prepare_for_forecasting(n_out)
 
         self.classifier = None
         self.featurizer = None
+
+        if n_features is not None:
+            self.prepare_for_featurization(n_features=n_features)
+
+        if n_classes is not None:
+            self.prepare_for_classification(n_classes=n_classes)
 
     def prepare_for_featurization(self, n_features):
         super().prepare_for_featurization(n_features)
