@@ -1,7 +1,6 @@
 import pytorch_lightning as pl
-import torch
-from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
 
 from ecodyna.pl_wrappers import LightningForecaster
 
@@ -21,6 +20,6 @@ class ForecastMetricLogger(pl.Callback):
             mse = 0
             for (tensor,) in dataloader:
                 B, T, D = tensor.size()
-                prediction = forecaster.forecast_in_chunks(tensor[:, :forecaster.n_in, :], n=T-forecaster.n_in)
+                prediction = forecaster.forecast_in_chunks(tensor[:, :forecaster.n_in, :], n=T - forecaster.n_in)
                 mse += F.mse_loss(prediction, tensor)
             trainer.logger.log_metrics({metric_name: mse})

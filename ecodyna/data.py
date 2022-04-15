@@ -12,12 +12,14 @@ def generate_trajectories(
         attractor: DynSys,
         trajectory_count: int,
         trajectory_length: int,
-        ic_fun: Optional[Callable[[], np.ndarray]] = None
+        ic_fun: Optional[Callable[[], np.ndarray]] = None,
+        verbose: bool = False
 ) -> Tensor:
-    if ic_fun is None:
-        ic_fun = lambda: attractor.ic
+    if ic_fun is None and trajectory_count > 1:
+        raise ValueError('Without specifying an initial condition function, all trajectories will be identical')
     trajectories = torch.empty(trajectory_count, trajectory_length, len(attractor.ic))
-    for i in tqdm.tqdm(range(trajectory_count)):
+
+    for i in (tqdm.tqdm if verbose else lambda x: x)(range(trajectory_count)):
         attractor.ic = ic_fun()
         trajectories[i, :, :] = Tensor(attractor.make_trajectory(trajectory_length))
     return trajectories
@@ -34,7 +36,8 @@ def save_trajectories(trajectories: Tensor, path: str):
 def load_or_generate_and_save(
         path: str,
         attractor: DynSys,
-        data_params: dict,
+        trajectory_count: int,
+        trajectory_length: int,
         ic_fun: Optional[Callable[[], np.ndarray]] = None
 ) -> Tensor:
     try:
@@ -42,8 +45,8 @@ def load_or_generate_and_save(
     except OSError:
         trajectories = generate_trajectories(
             attractor,
-            trajectory_count=data_params['trajectory_count'],
-            trajectory_length=data_params['trajectory_length'],
+            trajectory_count=trajectory_count,
+            trajectory_length=trajectory_length,
             ic_fun=ic_fun
         )
         save_trajectories(trajectories, path)

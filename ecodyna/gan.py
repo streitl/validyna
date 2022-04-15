@@ -1,23 +1,25 @@
+from typing import Optional
+
 import pytorch_lightning as pl
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.optim import AdamW
 
 
 # TODO
 class TimeSeriesGAN(pl.LightningModule):
     class Generator(nn.Module):
-        def __init__(self, series_dim, latent_dim, condition_dim, hidden_dim):
+        def __init__(self, space_dim, latent_dim, condition_dim, n_hidden):
             super().__init__()
-            self.lstm = nn.LSTM(input_size=latent_dim + condition_dim, hidden_size=hidden_dim)
+            self.lstm = nn.LSTM(batch_first=True, input_size=latent_dim + condition_dim, hidden_size=n_hidden)
             self.regressor = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(n_hidden, n_hidden),
                 nn.Dropout(0.5),
                 nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim),
+                nn.Linear(n_hidden, n_hidden),
                 nn.Dropout(0.5),
                 nn.ReLU(),
-                nn.Linear(hidden_dim, series_dim)
+                nn.Linear(n_hidden, space_dim)
             )
 
         def forward(self, z, length=100):
@@ -28,34 +30,33 @@ class TimeSeriesGAN(pl.LightningModule):
             return torch.tensor(outs, requires_grad=True)
 
     class Discriminator(nn.Module):
-        def __init__(self, series_dim, condition_dim, hidden_dim):
+        def __init__(self, space_dim, condition_dim, n_hidden):
             super().__init__()
-            self.lstm = nn.LSTM(input_size=series_dim + condition_dim, hidden_size=hidden_dim)
+            self.lstm = nn.LSTM(batch_first=True, input_size=space_dim + condition_dim, hidden_size=n_hidden)
+            self.classifier = nn.Linear(n_hidden, 2)
 
-        def forward(self, ts, cond=None):
-            l = ts
+        def forward(self, x: Tensor, cond: Optional[Tensor] = None):
             if cond is not None:
-                l = [torch.concat(x, cond) for x in ts]
+                x = torch.concat((x, cond))
+            output, last_hidden_layer = self.lstm(x)
+            return self.classifier(output[: -1, :])
 
-            for i, x in enumerate(l):
-                h = self.lstm(x)
-
-    def __init__(self, series_dim, latent_dim, condition_dim, hidden_dim):
+    def __init__(self, space_dim: int, latent_dim: int, condition_dim: int, n_hidden: int):
         super().__init__()
         self.latent_dim = latent_dim
-        self.series_dim = series_dim
+        self.space_dim = space_dim
         self.condition_dim = condition_dim
-        self.hidden_dim = hidden_dim
+        self.hidden_dim = space_dim
         self.netG = self.Generator(
-            series_dim=series_dim,
+            space_dim=space_dim,
             latent_dim=latent_dim,
             condition_dim=condition_dim,
-            hidden_dim=hidden_dim
+            n_hidden=n_hidden
         )
         self.netD = self.Discriminator(
-            series_dim=series_dim,
+            space_dim=space_dim,
             condition_dim=condition_dim,
-            hidden_dim=condition_dim
+            n_hidden=n_hidden
         )
 
     def configure_optimizers(self):
