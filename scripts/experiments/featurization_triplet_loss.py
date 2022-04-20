@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from config import ROOT_DIR
 from ecodyna.data import generate_trajectories, TripletDataset, build_sliced_dataset
-from ecodyna.mutitask_models import MultiTaskRNN, MultiTaskNBEATS
+from ecodyna.mutitask_models import MultiTaskRNN
 from ecodyna.pl_wrappers import LightningFeaturizer
 
 if __name__ == '__main__':
@@ -26,11 +26,11 @@ if __name__ == '__main__':
         os.mkdir(f'{ROOT_DIR}/results')
 
     # data parameters
-    dp = {'trajectory_count': 20, 'trajectory_length': 500}
+    dp = {'trajectory_count': 20, 'trajectory_length': 100}
     # in out parameters (appear in many places)
     iop = {'n_in': 5}
     # common model parameters
-    cmp = {'n_features': 32, **iop}
+    cmp = {'n_features': 5, **iop}
     # experiment parameters
     ep = {'n_epochs': 20, 'train_part': 0.75, 'n_splits': 2}
     # data loader parameters
