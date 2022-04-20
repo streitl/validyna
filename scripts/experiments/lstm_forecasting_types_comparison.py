@@ -8,7 +8,7 @@ if __name__ == '__main__':
     in_out_parameters = {'n_in': 5, 'n_out': 5}
     common_model_parameters = {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1, **in_out_parameters}
     experiment_parameters = {'n_epochs': 5, 'train_part': 0.75, 'n_splits': 2}
-    dataloader_parameters = {'batch_size': 64, 'num_workers': 8, **in_out_parameters}
+    dataloader_parameters = {'batch_size': 64, 'num_workers': 8}
 
     models_and_params = [
         (MultiTaskRNN, {'forecast_type': 'n_out'}),
@@ -18,6 +18,7 @@ if __name__ == '__main__':
     run_forecasting_experiment(
         project='lstm-forecasting-comparison-1',
         data_parameters=data_parameters,
+        in_out_parameters=in_out_parameters,
         common_model_parameters=common_model_parameters,
         experiment_parameters=experiment_parameters,
         dataloader_parameters=dataloader_parameters,

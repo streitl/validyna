@@ -318,5 +318,5 @@ dependencies:
     - torchsde==0.2.5
     - trampoline==0.1.2
     - ujson==5.1.0
-    - wandb==0.12.11
+    - wandb==0.12.14
     - yaspin==2.1.0

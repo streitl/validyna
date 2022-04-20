@@ -9,10 +9,10 @@ import torch
 from dysts.base import get_attractor_list, DynSys
 from numpy.random import rand
 from pytorch_lightning.loggers import WandbLogger
-from torch.utils.data import TensorDataset
+from torch.utils.data import TensorDataset, DataLoader, random_split
 
 from config import ROOT_DIR
-from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataloader
+from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset
 from ecodyna.metrics import DatasetMetricLogger
 from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
 from ecodyna.pl_wrappers import LightningForecaster
@@ -21,6 +21,7 @@ from ecodyna.pl_wrappers import LightningForecaster
 def run_forecasting_experiment(
         project: str,
         data_parameters: Dict,
+        in_out_parameters: Dict,
         common_model_parameters: Dict,
         experiment_parameters: Dict,
         dataloader_parameters: Dict,
@@ -28,6 +29,7 @@ def run_forecasting_experiment(
         trainer_callbacks: List[Type[DatasetMetricLogger]]
 ):
     dp = data_parameters
+    iop = in_out_parameters
     cmp = common_model_parameters
     ep = experiment_parameters
     dlp = dataloader_parameters
@@ -43,7 +45,6 @@ def run_forecasting_experiment(
     val_size = dp['trajectory_count'] - train_size
 
     for attractor_name in get_attractor_list():
-
         attractor: DynSys = getattr(dysts.flows, attractor_name)()
 
         attractor_x0 = attractor.ic.copy()
@@ -56,10 +57,10 @@ def run_forecasting_experiment(
         dataset = TensorDataset(data)
 
         for split in range(ep['n_splits']):
-            train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+            train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-            chunk_train_dl = build_in_out_pair_dataloader(train_dataset, **dlp, shuffle=True)
-            chunk_val_dl = build_in_out_pair_dataloader(val_dataset, **dlp)
+            chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_dataset, **iop), **dlp, shuffle=True)
+            chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_dataset, **iop), **dlp)
 
             for Model, mp in models_and_params:
                 model = Model(space_dim=space_dim, **mp, **cmp)

@@ -128,13 +128,14 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
     """
     Implements LSTM and GRU.
     """
+
     def __init__(
             self,
             model: Literal['GRU', 'LSTM'],
-            n_hidden: int,
             n_layers: int,
             n_in: int,
             space_dim: int,
+            n_hidden: Optional[int] = None,
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
             n_out: Optional[int] = None,
@@ -144,6 +145,12 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         super().__init__(n_in=n_in, space_dim=space_dim)
 
         assert model in ['GRU', 'LSTM'], 'Only GRU and LSTM are supported'
+        assert not (n_features is None and n_hidden is None), 'Must specify the number of hidden units or features'
+        assert n_features is None or n_hidden is None or n_hidden == n_features, \
+            f'The current {self.name()} only accepts n_features == n_hidden'
+        n_features = n_features or n_hidden
+        n_hidden = n_features
+
         self.model = model
         self.rnn = getattr(nn, model)(
             batch_first=True,
@@ -161,9 +168,7 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
 
         # RNNs are natural featurizers
         # TODO should we use a featurizer layer to allow n_features != n_hidden?
-        if n_features is not None:
-            assert n_features == n_hidden, f'The current {self.name()} only accepts n_features == n_hidden'
-        self.prepare_for_featurization(n_features=n_hidden)
+        self.prepare_for_featurization(n_features=n_features)
 
         if n_classes is not None:
             self.prepare_for_classification(n_classes=n_classes)
