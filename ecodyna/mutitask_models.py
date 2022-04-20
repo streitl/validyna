@@ -138,7 +138,7 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
             n_out: Optional[int] = None,
-            forecast_type: Literal['n_out', 'recurrent'] = 'n_out',
+            forecast_type: Literal['n_out', 'recurrent'] = 'recurrent',
             *args, **kwargs
     ):
         super().__init__(n_in=n_in, space_dim=space_dim)

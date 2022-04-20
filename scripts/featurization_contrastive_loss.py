@@ -41,7 +41,7 @@ if __name__ == '__main__':
     train_size = int(ep['train_part'] * dp['trajectory_count'])
     val_size = dp['trajectory_count'] - train_size
 
-    datasets = {}
+    dataloaders = {}
     for attractor_name in dysts.base.get_attractor_list():
         attractor = getattr(dysts.flows, attractor_name)()
 
@@ -50,13 +50,13 @@ if __name__ == '__main__':
 
         data = generate_trajectories(attractor, ic_fun=lambda: rand(space_dim) - 0.5 + attractor_x0, **dp)
 
-        if space_dim not in datasets:
-            datasets[space_dim] = []
-        datasets[space_dim].append(TensorDataset(data))
+        if space_dim not in dataloaders:
+            dataloaders[space_dim] = []
+        dataloaders[space_dim].append(DataLoader(TensorDataset(data), **dlp))
 
-    for space_dim in datasets.keys():
+    for space_dim in dataloaders.keys():
 
-        for (i, dataset_a), (j, dataset_b) in product(enumerate(datasets[space_dim]), repeat=2):
+        for (i, dataset_a), (j, dataset_b) in product(enumerate(dataloaders[space_dim]), repeat=2):
             if i == j:
                 continue
 

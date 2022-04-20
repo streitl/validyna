@@ -17,6 +17,8 @@ def generate_trajectories(
 ) -> Tensor:
     if ic_fun is None and trajectory_count > 1:
         raise ValueError('Without specifying an initial condition function, all trajectories will be identical')
+    if verbose:
+        print(f'Generating data for attractor {attractor.name}')
     trajectories = torch.empty(trajectory_count, trajectory_length, len(attractor.ic))
 
     for i in (tqdm.tqdm if verbose else lambda x: x)(range(trajectory_count)):

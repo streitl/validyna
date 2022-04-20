@@ -52,14 +52,13 @@ class LightningFeaturizer(pl.LightningModule):
     ):
         super().__init__(*args, **kwargs)
         self.model = model
-        self.criterion = lambda f_a, f_p, f_n: 0  # TODO
         self.lr = lr
 
     def get_loss(self, a, p, n):
         f_a = self.model(a, kind='featurization')
         f_p = self.model(p, kind='featurization')
         f_n = self.model(n, kind='featurization')
-        loss = self.criterion(f_a, f_p, f_n)
+        loss = F.triplet_margin_loss(f_a, f_p, f_n)  # TODO check
         return loss
 
     def training_step(self, batch, batch_idx):
