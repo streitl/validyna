@@ -1,11 +1,8 @@
 import os
-import random
 
 import dysts.base
 import dysts.flows
-import numpy as np
 import pytorch_lightning as pl
-import torch.utils.data
 from dysts.base import DynSysDelay
 from numpy.random import rand
 from pytorch_lightning.loggers import WandbLogger
@@ -18,9 +15,8 @@ from ecodyna.mutitask_models import MultiTaskRNN
 from ecodyna.pl_wrappers import LightningFeaturizer
 
 if __name__ == '__main__':
-    torch.manual_seed(0)
-    random.seed(0)
-    np.random.seed(0)
+    # Sets random seed for random, numpy and torch
+    pl.seed_everything(42, workers=True)
 
     if not os.path.isdir(f'{ROOT_DIR}/results'):
         os.mkdir(f'{ROOT_DIR}/results')
@@ -28,17 +24,19 @@ if __name__ == '__main__':
     # data parameters
     dp = {'trajectory_count': 20, 'trajectory_length': 100}
     # in out parameters (appear in many places)
-    iop = {'n_in': 5}
+    iop = {'n_in': 10}
     # common model parameters
     cmp = {'n_features': 5, **iop}
     # experiment parameters
-    ep = {'n_epochs': 20, 'train_part': 0.75, 'n_splits': 2}
+    ep = {'train_part': 0.75, 'n_splits': 2}
+    # trainer parameters
+    tp = {'max_epochs': 20}
     # data loader parameters
     dlp = {'batch_size': 64, 'num_workers': 8}
 
     models_and_params = [
-        (MultiTaskRNN, {'model': 'LSTM', 'n_layers': 1}),
-        (MultiTaskRNN, {'model': 'GRU', 'n_layers': 1})
+        (MultiTaskRNN, {'model': 'GRU', 'n_layers': 1}),
+        (MultiTaskRNN, {'model': 'LSTM', 'n_layers': 1})
     ]
 
     train_size = int(ep['train_part'] * dp['trajectory_count'])
@@ -100,14 +98,14 @@ if __name__ == '__main__':
 
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'model.name': model.name(),
-                    'model': {**mp, **cmp},
+                    'featurizer': {'name': model.name(), **mp, **cmp},
                     'data': dp,
                     'dataloader': dlp,
+                    'trainer': tp,
                     'experiment': ep
                 })
 
-                model_trainer = pl.Trainer(logger=wandb_logger, max_epochs=ep['n_epochs'])
+                model_trainer = pl.Trainer(logger=wandb_logger, max_epochs=ep['n_epochs'], deterministic=True)
                 forecaster = LightningFeaturizer(model=model)
                 model_trainer.fit(forecaster, train_dataloaders=triplet_train_dl, val_dataloaders=triplet_val_dl)
 

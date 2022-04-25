@@ -24,6 +24,7 @@ class ForecastMetricLogger(DatasetMetricLogger):
 
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: LightningForecaster):
         forecaster = pl_module.model
+        metrics = {}
         for metric_name, dataset in [
             ('train_traj_mse', self.train_dataset),
             ('val_traj_mse', self.val_dataset)
@@ -35,7 +36,9 @@ class ForecastMetricLogger(DatasetMetricLogger):
                 prediction = forecaster.forecast_in_chunks(tensor[:, :forecaster.n_in, :], n=T - forecaster.n_in)
                 mse += F.mse_loss(prediction, tensor)
                 break  # not needed but to clarify that the for loop only exists to extract data from dataloader
-            trainer.logger.log_metrics({metric_name: mse})
+            metrics[metric_name] = mse
+
+        trainer.logger.log_metrics(metrics)  # logging everything at once to avoid indexing by different steps
 
 
 class RNNForecastMetricLogger(ForecastMetricLogger):

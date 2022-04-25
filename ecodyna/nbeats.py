@@ -66,11 +66,11 @@ class NBEATS(nn.Module):
             self,
             n_in: int,
             n_out: int,
-            n_stacks: int,
-            n_blocks: int,
-            n_layers: int,
-            expansion_coefficient_dim: int,
-            layer_widths: Union[int, List[int]]
+            n_stacks: int = 1,
+            n_blocks: int = 4,
+            n_layers: int = 4,
+            expansion_coefficient_dim: int = 5,
+            layer_widths: Union[int, List[int]] = 32
     ):
         super().__init__()
 

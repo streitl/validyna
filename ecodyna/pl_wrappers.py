@@ -8,15 +8,11 @@ from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
 
 class LightningClassifier(pl.LightningModule):
 
-    def __init__(
-            self,
-            model: MultiTaskTimeSeriesModel,
-            lr: float = 1e-4,
-            *args, **kwargs
-    ):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.lr = lr
+        self.save_hyperparameters()
 
     def get_loss_acc(self, x, y):
         out = self.model(x, kind='classification')
@@ -44,15 +40,11 @@ class LightningClassifier(pl.LightningModule):
 
 class LightningFeaturizer(pl.LightningModule):
 
-    def __init__(
-            self,
-            model: MultiTaskTimeSeriesModel,
-            lr: float = 1e-4,
-            *args, **kwargs
-    ):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.lr = lr
+        self.save_hyperparameters()
 
     def get_loss(self, a, p, n):
         f_a = self.model(a, kind='featurization')
@@ -78,15 +70,12 @@ class LightningFeaturizer(pl.LightningModule):
 
 
 class LightningForecaster(pl.LightningModule):
-    def __init__(
-            self,
-            model: MultiTaskTimeSeriesModel,
-            lr: float = 1e-4,
-            *args, **kwargs
-    ):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.lr = lr
+        self.save_hyperparameters()
+        self.prediction_func_name = 'forecast_in_chunks'  # TODO
 
     def get_loss(self, x, y):
         out = self.model(x, kind='forecasting')
@@ -104,6 +93,12 @@ class LightningForecaster(pl.LightningModule):
         loss = self.get_loss(x, y)
         self.log('val_loss', loss)
         return loss
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        tensor = batch[0]
+        x = tensor[:, :self.model.n_in, :]
+        predict = getattr(self.model, self.prediction_func_name)
+        return predict(x, n=tensor.size(1) - self.model.n_in)
 
     def configure_optimizers(self):
         return AdamW(self.parameters(), lr=self.lr)

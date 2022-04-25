@@ -70,7 +70,7 @@ def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Datase
     slices = torch.stack([
         tensor[i:i + n_in + n_out, :]
         for (tensor,) in dataset
-        for i in range(tensor.size(0) - n_in - n_out)
+        for i in range(tensor.size(0) - n_in - n_out + 1)
     ])
     x = slices[:, :n_in, :]
     y = slices[:, n_in:, :]

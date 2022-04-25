@@ -1,11 +1,8 @@
 import os
-import random
 from typing import Dict, Sequence, Tuple, Type, List
 
 import dysts.flows
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from dysts.base import get_attractor_list, DynSys
 from numpy.random import rand
 from pytorch_lightning.loggers import WandbLogger
@@ -24,19 +21,20 @@ def run_forecasting_experiment(
         in_out_parameters: Dict,
         common_model_parameters: Dict,
         experiment_parameters: Dict,
+        trainer_parameters: Dict,
         dataloader_parameters: Dict,
         models_and_params: Sequence[Tuple[Type[MultiTaskTimeSeriesModel], Dict]],
-        trainer_callbacks: List[Type[DatasetMetricLogger]]
+        metric_loggers: List[Type[DatasetMetricLogger]]
 ):
     dp = data_parameters
     iop = in_out_parameters
     cmp = common_model_parameters
     ep = experiment_parameters
+    tp = trainer_parameters
     dlp = dataloader_parameters
 
-    torch.manual_seed(0)
-    random.seed(0)
-    np.random.seed(0)
+    # Sets random seed for random, numpy and torch
+    pl.seed_everything(42, workers=True)
 
     if not os.path.isdir(f'{ROOT_DIR}/results'):
         os.mkdir(f'{ROOT_DIR}/results')
@@ -62,6 +60,9 @@ def run_forecasting_experiment(
             chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_dataset, **iop), **dlp, shuffle=True)
             chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_dataset, **iop), **dlp)
 
+            tp['callbacks'] = (tp['callbacks'] if 'callbacks' in tp else []) + \
+                [Logger(train_dataset, val_dataset) for Logger in metric_loggers]
+
             for Model, mp in models_and_params:
                 model = Model(space_dim=space_dim, **mp, **cmp)
 
@@ -73,19 +74,14 @@ def run_forecasting_experiment(
 
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'model.name': model.name(),
-                    'model': {**mp, **cmp},
+                    'forecaster': {'name': model.name(), **mp, **cmp},
                     'data': {'attractor': attractor_name, **dp},
                     'dataloader': dlp,
                     'experiment': ep
                 })
 
-                model_trainer = pl.Trainer(
-                    logger=wandb_logger,
-                    max_epochs=ep['n_epochs'],
-                    callbacks=[Callback(train_dataset, val_dataset) for Callback in trainer_callbacks]
-                )
+                trainer = pl.Trainer(logger=wandb_logger, deterministic=True, **tp)
                 forecaster = LightningForecaster(model=model)
-                model_trainer.fit(forecaster, train_dataloaders=chunk_train_dl, val_dataloaders=chunk_val_dl)
+                trainer.fit(forecaster, train_dataloaders=chunk_train_dl, val_dataloaders=chunk_val_dl)
 
                 wandb_logger.experiment.finish(quiet=True)

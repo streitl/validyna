@@ -127,6 +127,8 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
 class MultiTaskRNN(MultiTaskTimeSeriesModel):
     """
     Implements LSTM and GRU.
+
+    TODO remove forecasting types of move them to another class
     """
 
     def __init__(
@@ -139,6 +141,8 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
             n_out: Optional[int] = None,
+            classifier: Optional[nn.Module] = None,
+            forecaster: Optional[nn.Module] = None,
             forecast_type: Literal['n_out', 'recurrent'] = 'recurrent',
             *args, **kwargs
     ):
@@ -171,19 +175,39 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         self.prepare_for_featurization(n_features=n_features)
 
         if n_classes is not None:
-            self.prepare_for_classification(n_classes=n_classes)
+            self.prepare_for_classification(n_classes=n_classes, classifier=classifier)
 
         if n_out is not None:
-            self.prepare_for_forecasting(n_out=n_out)
+            self.prepare_for_forecasting(n_out=n_out, forecaster=forecaster)
 
-    def prepare_for_classification(self, n_classes: int):
+    def prepare_for_classification(self, n_classes: int, classifier: nn.Module = None):
         super().prepare_for_classification(n_classes=n_classes)
-        self.classifier = nn.Linear(self.n_features, self.n_classes)
+        if classifier is None:
+            classifier = nn.Linear(self.n_features, self.n_classes)
+        self.classifier = classifier
 
-    def prepare_for_forecasting(self, n_out: int):
+    def prepare_for_forecasting(self, n_out: int, forecaster: nn.Module = None):
         super().prepare_for_forecasting(n_out=n_out)
-        self.forecaster_n_out = nn.Linear(self.n_features, self.space_dim * self.n_out)
-        self.forecaster_one = nn.Linear(self.n_features, self.space_dim)
+        self.forecaster_n_out = nn.Sequential(
+            nn.Linear(self.n_features, self.n_features),
+            nn.ReLU(),
+            nn.Linear(self.n_features, self.n_features),
+            nn.ReLU(),
+            nn.Linear(self.n_features, self.n_features),
+            nn.ReLU(),
+            nn.Linear(self.n_features, self.space_dim * self.n_out)
+        )
+        if forecaster is None:
+            forecaster = nn.Sequential(
+                nn.Linear(self.n_features, self.n_features),
+                nn.ReLU(),
+                nn.Linear(self.n_features, self.n_features),
+                nn.ReLU(),
+                nn.Linear(self.n_features, self.n_features),
+                nn.ReLU(),
+                nn.Linear(self.n_features, self.space_dim)
+            )
+        self.forecaster_one = forecaster
 
     def prepare_for_featurization(self, n_features: int):
         super().prepare_for_featurization(n_features=n_features)
