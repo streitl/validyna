@@ -22,21 +22,19 @@ class ForecastMetricLogger(DatasetMetricLogger):
     def __init__(self, train_dataset: Dataset, val_dataset: Dataset):
         super().__init__(train_dataset, val_dataset)
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: LightningForecaster):
-        forecaster = pl_module.model
+    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: LightningForecaster):
+        model = forecaster.model
         metrics = {}
-        for metric_name, dataset in [
-            ('train_traj_mse', self.train_dataset),
-            ('val_traj_mse', self.val_dataset)
-        ]:
-            dataloader = DataLoader(dataset, batch_size=len(dataset))
-            mse = 0
-            for (tensor,) in dataloader:
-                B, T, D = tensor.size()
-                prediction = forecaster.forecast_in_chunks(tensor[:, :forecaster.n_in, :], n=T - forecaster.n_in)
-                mse += F.mse_loss(prediction, tensor)
-                break  # not needed but to clarify that the for loop only exists to extract data from dataloader
-            metrics[metric_name] = mse
+        for dataset_name, dataset in [('train', self.train_dataset), ('val', self.val_dataset)]:
+            # Some boilerplate to access the inner tensor from the dataset
+            (tensor,) = next(iter(DataLoader(dataset, batch_size=len(dataset))))
+            B, T, D = tensor.size()
+            start, target = tensor.split_with_sizes((model.n_in, T - model.n_in), dim=1)
+            prediction = model.forecast_in_chunks(start, n=target.size(1))[:, model.n_in:, :]
+
+            for metric_name, metric_func in [('full_mse', F.mse_loss)]:
+                metric = metric_func(prediction, target).item()
+                metrics[f'{dataset_name}_{metric_name}'] = metric
 
         trainer.logger.log_metrics(metrics)  # logging everything at once to avoid indexing by different steps
 
@@ -45,27 +43,21 @@ class RNNForecastMetricLogger(ForecastMetricLogger):
     def __init__(self, train_dataset: Dataset, val_dataset: Dataset):
         super().__init__(train_dataset, val_dataset)
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: LightningForecaster):
-        if not isinstance(pl_module.model, MultiTaskRNN):
-            raise ValueError(f'This Callback can only be applied to MultiTaskRNNs')
-        forecaster: MultiTaskRNN = pl_module.model
+    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: LightningForecaster):
+        if not isinstance(forecaster.model, MultiTaskRNN):
+            raise ValueError(f'This Callback can only be applied to MultiTaskRNN')
+        rnn: MultiTaskRNN = forecaster.model
         metrics = {}
-        for metric_name, dataset in [
-            ('train_traj_mse', self.train_dataset),
-            ('val_traj_mse', self.val_dataset)
-        ]:
-            dataloader = DataLoader(dataset, batch_size=len(dataset))
-            for func_name, forecast_func in [
-                ('one', forecaster.forecast_recurrently_one),
-                ('chunks', forecaster.forecast_in_chunks),
-                ('first', forecaster.forecast_recurrently_n_out_first)
-            ]:
-                mse = 0
-                for (tensor,) in dataloader:
-                    B, T, D = tensor.size()
-                    prediction = forecast_func(tensor[:, :forecaster.n_in, :], n=T - forecaster.n_in)
-                    mse += F.mse_loss(prediction, tensor)
-                    break  # not needed but to clarify that the for loop only exists to extract data from dataloader
-                metrics[f'{metric_name}_{func_name}'] = mse
+        for dataset_name, dataset in [('train', self.train_dataset), ('val', self.val_dataset)]:
+            # Some boilerplate to access the inner tensor from the dataset
+            (tensor,) = next(iter(DataLoader(dataset, batch_size=len(dataset))))
+            B, T, D = tensor.size()
+            start, target = tensor.split_with_sizes((rnn.n_in, T - rnn.n_in), dim=1)
+            for forecast_name, forecast_func in rnn.get_applicable_forecast_functions().items():
+                prediction = forecast_func(start, n=target.size(1))[:, rnn.n_in:, :]
+
+                for metric_name, metric_func in [('full_mse', F.mse_loss)]:
+                    metric = metric_func(prediction, target).item()
+                    metrics[f'{dataset_name}_{metric_name}_{forecast_name}'] = metric
 
         trainer.logger.log_metrics(metrics)  # logging everything at once to avoid indexing by different steps

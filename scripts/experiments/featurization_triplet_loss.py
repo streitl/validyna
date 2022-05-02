@@ -98,14 +98,14 @@ if __name__ == '__main__':
 
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'featurizer': {'name': model.name(), **mp, **cmp},
+                    'featurizer': {'name': model.name(), **model.hyperparams},
                     'data': dp,
                     'dataloader': dlp,
                     'trainer': tp,
                     'experiment': ep
                 })
 
-                model_trainer = pl.Trainer(logger=wandb_logger, max_epochs=ep['n_epochs'], deterministic=True)
+                model_trainer = pl.Trainer(logger=wandb_logger, max_epochs=ep['max_epochs'], deterministic=True)
                 forecaster = LightningFeaturizer(model=model)
                 model_trainer.fit(forecaster, train_dataloaders=triplet_train_dl, val_dataloaders=triplet_val_dl)
 

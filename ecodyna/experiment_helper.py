@@ -74,7 +74,7 @@ def run_forecasting_experiment(
 
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'forecaster': {'name': model.name(), **mp, **cmp},
+                    'forecaster': {'name': model.name(), **model.hyperparams},
                     'data': {'attractor': attractor_name, **dp},
                     'dataloader': dlp,
                     'experiment': ep

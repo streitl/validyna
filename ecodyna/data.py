@@ -14,7 +14,8 @@ def generate_trajectories(
         trajectory_count: int,
         trajectory_length: int,
         ic_fun: Optional[Callable[[], np.ndarray]] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        **kwargs
 ) -> Tensor:
     if ic_fun is None and trajectory_count > 1:
         raise ValueError('Without specifying an initial condition function, all trajectories will be identical')
@@ -24,7 +25,7 @@ def generate_trajectories(
 
     for i in (tqdm.tqdm if verbose else lambda x: x)(range(trajectory_count)):
         attractor.ic = ic_fun()
-        trajectories[i, :, :] = Tensor(attractor.make_trajectory(trajectory_length))
+        trajectories[i, :, :] = Tensor(attractor.make_trajectory(trajectory_length, **kwargs))
     return trajectories
 
 
@@ -41,7 +42,8 @@ def load_or_generate_and_save(
         attractor: DynSys,
         trajectory_count: int,
         trajectory_length: int,
-        ic_fun: Optional[Callable[[], np.ndarray]] = None
+        ic_fun: Optional[Callable[[], np.ndarray]] = None,
+        **kwargs
 ) -> Tensor:
     try:
         trajectories = load_trajectories(path)
@@ -50,7 +52,8 @@ def load_or_generate_and_save(
             attractor,
             trajectory_count=trajectory_count,
             trajectory_length=trajectory_length,
-            ic_fun=ic_fun
+            ic_fun=ic_fun,
+            **kwargs
         )
         save_trajectories(trajectories, path)
 

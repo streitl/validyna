@@ -2,7 +2,6 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from torch import Tensor
 
 
@@ -40,4 +39,37 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
     fig.legend(handles, labels, loc='upper center')
 
     plt.tight_layout()
+    return fig
+
+
+def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int):
+    if len(tensors) != len(labels):
+        raise ValueError(
+            f'Number of trajectories and of labels must be equal (got {len(tensors)} and {len(labels)})')
+    assert all(tensor.size(0) >= n_plots for tensor in tensors)
+
+    arrays = [tensor.numpy() for tensor in tensors]
+    array_all = np.concatenate(tuple(arrays))
+    space_dim = array_all.shape[-1]
+    mins = np.min(array_all, axis=(0, 1))
+    maxs = np.max(array_all, axis=(0, 1))
+
+    fig = plt.figure(figsize=(16, n_plots * space_dim))
+    subfigs = fig.subfigures(n_plots, 1, hspace=0.01)
+
+    for i in range(n_plots):
+        ic = arrays[0][i, 0, :]
+        axes = subfigs[i].subplots(space_dim, 1)
+        subfigs[i].suptitle(f'x̅0={tuple(np.round(ic, 1))}')
+
+        for n, array in enumerate(arrays):
+            for dim, axis in enumerate(axes):
+                axis.plot(array[i, :, dim], label=labels[n])
+                axis.set_ylabel(f'x{dim}')
+                axis.set_ylim(mins[dim], maxs[dim])
+                axis.get_yaxis().set_label_coords(-0.03, 0.5)
+                if dim + 1 != space_dim:
+                    axis.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+
+    plt.legend()
     return fig

@@ -14,7 +14,8 @@ class LightningClassifier(pl.LightningModule):
         self.lr = lr
         self.save_hyperparameters()
 
-    def get_loss_acc(self, x, y):
+    def get_loss_acc(self, batch):
+        x, y = batch
         out = self.model(x, kind='classification')
         loss = F.cross_entropy(out, y)
         preds = torch.argmax(F.log_softmax(out), dim=1)
@@ -22,15 +23,13 @@ class LightningClassifier(pl.LightningModule):
         return loss, acc
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        loss, acc = self.get_loss_acc(x, y)
+        loss, acc = self.get_loss_acc(batch)
         self.log('train_loss', loss)
         self.log('train_acc', acc)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        loss, acc = self.get_loss_acc(x, y)
+        loss, acc = self.get_loss_acc(batch)
         self.log('val_loss', loss)
         self.log('val_acc', acc)
 
@@ -46,7 +45,8 @@ class LightningFeaturizer(pl.LightningModule):
         self.lr = lr
         self.save_hyperparameters()
 
-    def get_loss(self, a, p, n):
+    def get_loss(self, batch):
+        a, p, n = batch
         f_a = self.model(a, kind='featurization')
         f_p = self.model(p, kind='featurization')
         f_n = self.model(n, kind='featurization')
@@ -54,22 +54,20 @@ class LightningFeaturizer(pl.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
-        a, p, n = batch
-        loss = self.get_loss(a, p, n)
+        loss = self.get_loss(batch)
         self.log('train_loss', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
-        a, p, n = batch
-        loss = self.get_loss(a, p, n)
+        loss = self.get_loss(batch)
         self.log('val_loss', loss)
-        return loss
 
     def configure_optimizers(self):
         return AdamW(self.parameters(), lr=self.lr)
 
 
 class LightningForecaster(pl.LightningModule):
+
     def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
@@ -77,25 +75,23 @@ class LightningForecaster(pl.LightningModule):
         self.save_hyperparameters()
         self.prediction_func_name = 'forecast_in_chunks'  # TODO
 
-    def get_loss(self, x, y):
+    def get_loss(self, batch):
+        x, y = batch
         out = self.model(x, kind='forecasting')
         loss = F.mse_loss(out, y)
         return loss
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        loss = self.get_loss(x, y)
+        loss = self.get_loss(batch)
         self.log('train_loss', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        loss = self.get_loss(x, y)
+        loss = self.get_loss(batch)
         self.log('val_loss', loss)
-        return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        tensor = batch[0]
+        (tensor,) = batch
         x = tensor[:, :self.model.n_in, :]
         predict = getattr(self.model, self.prediction_func_name)
         return predict(x, n=tensor.size(1) - self.model.n_in)

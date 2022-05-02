@@ -31,6 +31,9 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         self.n_out = None
         self.n_features = None
 
+        self.hyperparams = {}
+        self.register_hyperparams(n_in=self.n_in, space_dim=self.space_dim)
+
     def is_prepared_for_classification(self) -> bool:
         return self.n_classes is not None
 
@@ -123,28 +126,29 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
     def name(self) -> str:
         pass
 
+    def register_hyperparams(self, **kwargs):
+        self.hyperparams.update(**kwargs)
+
 
 class MultiTaskRNN(MultiTaskTimeSeriesModel):
     """
     Implements LSTM and GRU.
-
-    TODO remove forecasting types of move them to another class
     """
 
     def __init__(
             self,
-            model: Literal['GRU', 'LSTM'],
-            n_layers: int,
             n_in: int,
             space_dim: int,
+            model: Literal['GRU', 'LSTM'],
+            n_layers: int,
             n_hidden: Optional[int] = None,
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
             n_out: Optional[int] = None,
             classifier: Optional[nn.Module] = None,
             forecaster: Optional[nn.Module] = None,
-            forecast_type: Literal['n_out', 'recurrent'] = 'recurrent',
-            *args, **kwargs
+            forecast_type: Literal['multi', 'one_by_one'] = 'one_by_one',
+            **kwargs
     ):
         super().__init__(n_in=n_in, space_dim=space_dim)
 
@@ -156,29 +160,30 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         n_hidden = n_features
 
         self.model = model
-        self.rnn = getattr(nn, model)(
-            batch_first=True,
-            input_size=space_dim, hidden_size=n_hidden, num_layers=n_layers,
-            *args, **kwargs
-        )
-        self.n_hidden = n_hidden
         self.n_layers = n_layers
-
+        self.n_hidden = n_hidden
         self.forecast_type = forecast_type
 
-        self.classifier = None
-        self.forecaster_n_out = None
-        self.forecaster_one = None
+        self.rnn = getattr(nn, model)(
+            batch_first=True,
+            input_size=space_dim, hidden_size=n_hidden, num_layers=n_layers, **kwargs
+        )
 
         # RNNs are natural featurizers
-        # TODO should we use a featurizer layer to allow n_features != n_hidden?
         self.prepare_for_featurization(n_features=n_features)
+        # TODO should we use a featurization net to allow n_features != n_hidden?
 
+        self.classifier = None
+        self.forecaster = None
         if n_classes is not None:
             self.prepare_for_classification(n_classes=n_classes, classifier=classifier)
-
         if n_out is not None:
             self.prepare_for_forecasting(n_out=n_out, forecaster=forecaster)
+
+        self.register_hyperparams(
+            n_classes=n_classes, n_features=n_features, n_out=n_out,
+            model=model, n_hidden=n_hidden, n_layers=n_layers, forecast_type=forecast_type, **kwargs
+        )
 
     def prepare_for_classification(self, n_classes: int, classifier: nn.Module = None):
         super().prepare_for_classification(n_classes=n_classes)
@@ -188,26 +193,14 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
 
     def prepare_for_forecasting(self, n_out: int, forecaster: nn.Module = None):
         super().prepare_for_forecasting(n_out=n_out)
-        self.forecaster_n_out = nn.Sequential(
-            nn.Linear(self.n_features, self.n_features),
-            nn.ReLU(),
-            nn.Linear(self.n_features, self.n_features),
-            nn.ReLU(),
-            nn.Linear(self.n_features, self.n_features),
-            nn.ReLU(),
-            nn.Linear(self.n_features, self.space_dim * self.n_out)
-        )
         if forecaster is None:
             forecaster = nn.Sequential(
-                nn.Linear(self.n_features, self.n_features),
-                nn.ReLU(),
-                nn.Linear(self.n_features, self.n_features),
-                nn.ReLU(),
-                nn.Linear(self.n_features, self.n_features),
-                nn.ReLU(),
-                nn.Linear(self.n_features, self.space_dim)
+                nn.Linear(self.n_features, self.n_features), nn.ReLU(),
+                nn.Linear(self.n_features, self.n_features), nn.ReLU(),
+                nn.Linear(self.n_features, self.n_features), nn.ReLU(),
+                nn.Linear(self.n_features, self.space_dim * (self.n_out if self.forecast_type == 'multi' else 1))
             )
-        self.forecaster_one = forecaster
+        self.forecaster = forecaster
 
     def prepare_for_featurization(self, n_features: int):
         super().prepare_for_featurization(n_features=n_features)
@@ -222,38 +215,47 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         # TODO return self.featurizer(output[:, -1, :]) is more powerful? allows n_features != n_hidden
 
     def forward_forecast(self, x: Tensor) -> Tensor:
-        if self.forecast_type == 'n_out':
-            return self.forward_forecast_n_out(x)
-        elif self.forecast_type == 'recurrent':
-            return self.forward_forecast_recurrently(x)
+        if self.forecast_type == 'multi':
+            B, T, D = x.size()
+            features = self.forward_featurize(x)
+            return self.forecaster_n_out(features).reshape(B, self.n_out, self.space_dim)
+        elif self.forecast_type == 'one_by_one':
+            return self.forecast_recurrently_one_by_one(x, n=self.n_out)[:, self.n_in:, :]
+        else:
+            raise ValueError(f'Unknown RNN forecast type: {self.forecast_type}')
 
-    def forward_forecast_n_out(self, x: Tensor) -> Tensor:
-        B, T, D = x.size()
-        features = self.forward_featurize(x)
-        return self.forecaster_n_out(features).view(B, self.n_out, self.space_dim)
-
-    def forward_forecast_recurrently(self, x: Tensor) -> Tensor:
-        return self.forecast_recurrently_one(x, n=self.n_out)[:, self.n_in:, :]
-
-    def forecast_recurrently_one(self, x: Tensor, n: int) -> Tensor:
+    def forecast_recurrently_one_by_one(self, x: Tensor, n: int) -> Tensor:
+        assert self.forecast_type == 'one_by_one', 'This forecast function requires forecast type `one_by_one`'
         B, T, D = x.size()
         ts = torch.empty((B, T + n, D), dtype=x.dtype)
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
-            ts[:, i, :] = self.forecaster_one(out[:, -1, :])
+            ts[:, i, :] = self.forecaster(out[:, -1, :])
             out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
         return ts
 
-    def forecast_recurrently_n_out_first(self, x: Tensor, n: int) -> Tensor:
+    def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
+        """
+        Forecasts recurrently by only keeping the first prediction of the multi-timestep output.
+        """
+        assert self.forecast_type == 'multi', 'This forecast function requires forecast type `multi`'
         B, T, D = x.size()
         ts = torch.empty((B, T + n, D), dtype=x.dtype)
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
-            ts[:, i, :] = self.forecaster_n_out(out[:, -1, :]).view(B, self.n_out, D)[:, 0, :]
+            ts[:, i, :] = self.forecaster_n_out(out[:, -1, :]).reshape(B, self.n_out, D)[:, 0, :]
             out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
         return ts
+
+    def get_applicable_forecast_functions(self):
+        functions = {'chunks': self.forecast_in_chunks}
+        if self.forecast_type == 'one_by_one':
+            functions['one_by_one'] = self.forecast_recurrently_one_by_one
+        elif self.forecast_type == 'multi':
+            functions['multi'] = self.forecast_recurrently_chunk_first
+        return functions
 
     def name(self) -> str:
         return self.model
@@ -271,23 +273,24 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
             n_out: int,
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
-            *args, **kwargs
+            **kwargs
     ):
         super().__init__(n_in=n_in, space_dim=space_dim)
 
-        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=n_out * space_dim, *args, **kwargs)
+        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=n_out * space_dim, **kwargs)
 
         # N-BEATS is a natural forecaster
         self.prepare_for_forecasting(n_out)
 
-        self.classifier = None
         self.featurizer = None
-
+        self.classifier = None
         # Prepare for featurization BEFORE classification if both are needed
         if n_features is not None:
             self.prepare_for_featurization(n_features=n_features)
         if n_classes is not None:
             self.prepare_for_classification(n_classes=n_classes)
+
+        self.register_hyperparams(n_classes=n_classes, n_features=n_features, n_out=n_out, **kwargs)
 
     def prepare_for_classification(self, n_classes: int):
         if not self.is_prepared_for_featurization():
@@ -308,15 +311,15 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
 
     def forward_featurize(self, x: Tensor) -> Tensor:
         B, T, D = x.size()
-        x = x.view(B, T * D)
+        x = x.reshape(B, T * D)
         y = self.nbeats(x)
         return self.featurizer(y)
 
     def forward_forecast(self, x: Tensor) -> Tensor:
         B, T, D = x.size()
-        x = x.view(B, T * D)
+        x = x.reshape(B, T * D)
         y = self.nbeats(x)
-        return y.view(B, -1, D)
+        return y.reshape(B, -1, D)
 
     def name(self) -> str:
         return 'N-BEATS'
@@ -331,15 +334,16 @@ class MultiTaskTransformer(MultiTaskTimeSeriesModel):
             n_out: int,
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
-            *args, **kwargs
+            **kwargs
     ):
         super().__init__(n_in=n_in, space_dim=space_dim)
 
-        self.transformer = nn.Transformer(batch_first=True, *args, **kwargs)
+        self.transformer = nn.Transformer(batch_first=True, **kwargs)
 
         # Transformer is designed for seq2seq which is easily adaptable to forecasting
         self.prepare_for_forecasting(n_out=n_out)
         # TODO
+        self.register_hyperparams(n_classes=n_classes, n_features=n_features, n_out=n_out, **kwargs)
 
     def prepare_for_classification(self, n_classes: int):
         # TODO

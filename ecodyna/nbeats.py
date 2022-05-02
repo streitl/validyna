@@ -98,7 +98,7 @@ class NBEATS(nn.Module):
         self.stacks[-1].blocks[-1].FC_backcast.requires_grad_(False)
         self.stacks[-1].blocks[-1].g_backcast.requires_grad_(False)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         B, T = x.size()
         assert T == self.n_in, f'NBeats should take {self.n_in} time steps as input'
         backcast = x
@@ -107,3 +107,9 @@ class NBEATS(nn.Module):
             backcast, stack_forecast = stack(backcast)
             forecast += stack_forecast
         return forecast
+
+    def featurize(self, x: Tensor) -> Tensor:
+        B, T = x.size()
+        assert T == self.n_in, f'NBeats should take {self.n_in} time steps as input'
+        # TODO
+        return x
