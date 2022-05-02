@@ -8,6 +8,8 @@ from dysts.flows import DynSys
 from torch import Tensor
 from torch.utils.data import TensorDataset, Dataset
 
+from config import ROOT_DIR
+
 
 def generate_trajectories(
         attractor: DynSys,
@@ -15,6 +17,8 @@ def generate_trajectories(
         trajectory_length: int,
         ic_fun: Optional[Callable[[], np.ndarray]] = None,
         verbose: bool = False,
+        resample=True,
+        pts_per_period=100,
         **kwargs
 ) -> Tensor:
     if ic_fun is None and trajectory_count > 1:
@@ -25,7 +29,8 @@ def generate_trajectories(
 
     for i in (tqdm.tqdm if verbose else lambda x: x)(range(trajectory_count)):
         attractor.ic = ic_fun()
-        trajectories[i, :, :] = Tensor(attractor.make_trajectory(trajectory_length, **kwargs))
+        trajectories[i, :, :] = Tensor(
+            attractor.make_trajectory(trajectory_length, resample=resample, pts_per_period=pts_per_period))
     return trajectories
 
 
@@ -78,6 +83,10 @@ def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Datase
     x = slices[:, :n_in, :]
     y = slices[:, n_in:, :]
     return TensorDataset(x, y)
+
+
+def build_data_path(**dp) -> str:
+    return f"{ROOT_DIR}/data/{'-'.join([f'{k}={v}' for k, v in sorted(dp.items(), key=lambda x: x[0])])}.pt"
 
 
 class TripletDataset(Dataset):

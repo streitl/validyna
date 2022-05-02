@@ -1,6 +1,6 @@
 from pytorch_lightning.callbacks import EarlyStopping
 
-from ecodyna.experiment_helper import run_forecasting_experiment
+from scripts.experiments.forecasting_experiment import run_forecasting_experiment
 from ecodyna.metrics import ForecastMetricLogger
 from ecodyna.mutitask_models import MultiTaskRNN, MultiTaskNBEATS
 

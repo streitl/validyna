@@ -9,7 +9,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 from config import ROOT_DIR
-from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset
+from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset, build_data_path
 from ecodyna.metrics import DatasetMetricLogger
 from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
 from ecodyna.pl_wrappers import LightningForecaster
@@ -48,10 +48,8 @@ def run_forecasting_experiment(
         attractor_x0 = attractor.ic.copy()
         space_dim = len(attractor_x0)
 
-        data_path = f"{ROOT_DIR}/data/{'_'.join([f'{k}_{v}' for k, v in sorted(dp.items(), key=lambda x: x[0])])}.pt"
-
-        data = load_or_generate_and_save(data_path, attractor, **dp,
-                                         ic_fun=lambda: rand(space_dim) - 0.5 + attractor_x0)
+        data = load_or_generate_and_save(build_data_path(**dp), attractor, **dp,
+                                         ic_fun=lambda: dp['ic_noise'] * (rand(space_dim) - 0.5) + attractor_x0)
         dataset = TensorDataset(data)
 
         for split in range(ep['n_splits']):

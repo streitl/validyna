@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 from tqdm import tqdm
 
 from config import ROOT_DIR
-from ecodyna.data import generate_trajectories, TripletDataset, build_sliced_dataset
+from ecodyna.data import TripletDataset, build_sliced_dataset, load_or_generate_and_save, build_data_path
 from ecodyna.mutitask_models import MultiTaskRNN
 from ecodyna.pl_wrappers import LightningFeaturizer
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
         os.mkdir(f'{ROOT_DIR}/results')
 
     # data parameters
-    dp = {'trajectory_count': 20, 'trajectory_length': 100}
+    dp = {'trajectory_count': 20, 'trajectory_length': 100, 'resample': True, 'pts_per_period': 50, 'ic_noise': 0.01}
     # in out parameters (appear in many places)
     iop = {'n_in': 10}
     # common model parameters
@@ -61,7 +61,8 @@ if __name__ == '__main__':
         print(f'Generating trajectories for attractors of dimension {space_dim}')
         for attractor in tqdm(attractors):
             attractor_x0 = attractor.ic.copy()
-            data = generate_trajectories(attractor, ic_fun=lambda: rand(space_dim) - 0.5 + attractor_x0, **dp)
+            data = load_or_generate_and_save(build_data_path(**dp), attractor, **dp,
+                                             ic_fun=lambda: dp['ic_noise'] * (rand(space_dim) - 0.5) + attractor_x0)
             datasets[attractor.name] = TensorDataset(data)
 
         for split in range(ep['n_splits']):
