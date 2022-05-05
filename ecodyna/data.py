@@ -1,10 +1,12 @@
 import random
-from typing import Callable, Optional, Dict
+from typing import Callable, Optional
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 import tqdm
 from dysts.flows import DynSys
+from numpy.random import rand
 from torch import Tensor
 from torch.utils.data import TensorDataset, Dataset
 
@@ -17,12 +19,16 @@ def generate_trajectories(
         trajectory_length: int,
         ic_fun: Optional[Callable[[], np.ndarray]] = None,
         verbose: bool = False,
-        resample=True,
-        pts_per_period=100,
-        **kwargs
+        resample: bool = True,
+        pts_per_period: int = 100,
+        ic_noise: Optional[float] = None
 ) -> Tensor:
     if ic_fun is None and trajectory_count > 1:
-        raise ValueError('Without specifying an initial condition function, all trajectories will be identical')
+        if ic_noise is None:
+            raise ValueError('Without specifying an initial condition function, all trajectories will be identical')
+        else:
+            attractor_ic = attractor.ic.copy()
+            ic_fun = lambda: ic_noise * (rand(len(attractor_ic)) - 0.5) + attractor_ic
     if verbose:
         print(f'Generating data for attractor {attractor.name}')
     trajectories = torch.empty(trajectory_count, trajectory_length, len(attractor.ic))
@@ -30,7 +36,8 @@ def generate_trajectories(
     for i in (tqdm.tqdm if verbose else lambda x: x)(range(trajectory_count)):
         attractor.ic = ic_fun()
         trajectories[i, :, :] = Tensor(
-            attractor.make_trajectory(trajectory_length, resample=resample, pts_per_period=pts_per_period))
+            attractor.make_trajectory(trajectory_length, resample=resample, pts_per_period=pts_per_period)
+        )
     return trajectories
 
 
@@ -43,28 +50,22 @@ def save_trajectories(trajectories: Tensor, path: str):
 
 
 def load_or_generate_and_save(
-        path: str,
         attractor: DynSys,
-        trajectory_count: int,
-        trajectory_length: int,
-        ic_fun: Optional[Callable[[], np.ndarray]] = None,
+        path: Optional[str] = None,
         **kwargs
 ) -> Tensor:
+    if path is None:
+        path = build_data_path(attractor=attractor.name, **kwargs)
     try:
         trajectories = load_trajectories(path)
     except OSError:
-        trajectories = generate_trajectories(
-            attractor,
-            trajectory_count=trajectory_count,
-            trajectory_length=trajectory_length,
-            ic_fun=ic_fun,
-            **kwargs
-        )
+        trajectories = generate_trajectories(attractor, **kwargs)
         save_trajectories(trajectories, path)
 
     return trajectories
 
 
+# Used for featurization and classification
 def build_sliced_dataset(dataset: Dataset, n_in: int) -> Dataset:
     slices = torch.stack([
         tensor[i:i + n_in, :]
@@ -74,6 +75,13 @@ def build_sliced_dataset(dataset: Dataset, n_in: int) -> Dataset:
     return TensorDataset(slices)
 
 
+def build_classification_dataset(dataset: Dataset, n_in: int, class_number: int) -> Dataset:
+    # TODO
+    sliced_dataset = build_sliced_dataset(dataset, n_in)
+    F.one_hot()
+
+
+# Used for forecasting
 def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Dataset:
     slices = torch.stack([
         tensor[i:i + n_in + n_out, :]
@@ -91,7 +99,7 @@ def build_data_path(**dp) -> str:
 
 class TripletDataset(Dataset):
 
-    def __init__(self, datasets_per_class: Dict[str, TensorDataset]):
+    def __init__(self, datasets_per_class: dict[str, TensorDataset]):
         assert len(datasets_per_class.keys()) > 1, 'There must be more than 1 class in the given datasets'
         self.datasets = datasets_per_class
         self.classes = list(self.datasets.keys())

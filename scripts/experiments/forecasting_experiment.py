@@ -1,85 +1,66 @@
 import os
-from typing import Dict, Sequence, Tuple, Type, List
 
 import dysts.flows
 import pytorch_lightning as pl
 from dysts.base import get_attractor_list, DynSys
-from numpy.random import rand
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 from config import ROOT_DIR
-from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset, build_data_path
-from ecodyna.metrics import DatasetMetricLogger
-from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
+from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset
 from ecodyna.pl_wrappers import LightningForecaster
 
 
-def run_forecasting_experiment(
-        project: str,
-        data_parameters: Dict,
-        in_out_parameters: Dict,
-        common_model_parameters: Dict,
-        experiment_parameters: Dict,
-        trainer_parameters: Dict,
-        dataloader_parameters: Dict,
-        models_and_params: Sequence[Tuple[Type[MultiTaskTimeSeriesModel], Dict]],
-        metric_loggers: List[Type[DatasetMetricLogger]]
-):
-    dp = data_parameters
-    iop = in_out_parameters
-    cmp = common_model_parameters
-    ep = experiment_parameters
-    tp = trainer_parameters
-    dlp = dataloader_parameters
-
+def run_forecasting_experiment(params: dict):
     # Sets random seed for random, numpy and torch
-    pl.seed_everything(42, workers=True)
+    pl.seed_everything(params['experiment']['random_seed'], workers=True)
 
     if not os.path.isdir(f'{ROOT_DIR}/results'):
         os.mkdir(f'{ROOT_DIR}/results')
 
-    train_size = int(ep['train_part'] * dp['trajectory_count'])
-    val_size = dp['trajectory_count'] - train_size
+    train_size = int(params['experiment']['train_part'] * params['data']['trajectory_count'])
+    val_size = params['data']['trajectory_count'] - train_size
 
     for attractor_name in get_attractor_list():
         attractor: DynSys = getattr(dysts.flows, attractor_name)()
 
-        attractor_x0 = attractor.ic.copy()
-        space_dim = len(attractor_x0)
+        attractor_ic = attractor.ic.copy()
+        space_dim = len(attractor_ic)
 
-        data = load_or_generate_and_save(build_data_path(**dp), attractor, **dp,
-                                         ic_fun=lambda: dp['ic_noise'] * (rand(space_dim) - 0.5) + attractor_x0)
+        data = load_or_generate_and_save(attractor=attractor, **params['data'])
         dataset = TensorDataset(data)
 
-        for split in range(ep['n_splits']):
-            train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        for split in range(params['experiment']['n_splits']):
+            train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
-            chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_dataset, **iop), **dlp, shuffle=True)
-            chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_dataset, **iop), **dlp)
+            chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_ds, **params['in_out']),
+                                        **params['dataloader'], shuffle=True)
+            chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_ds, **params['in_out']),
+                                      **params['dataloader'])
 
-            tp['callbacks'] = (tp['callbacks'] if 'callbacks' in tp else []) + \
-                [Logger(train_dataset, val_dataset) for Logger in metric_loggers]
+            # Add metric loggers to the list of trainer callbacks
+            params['trainer']['callbacks'].append([Logger(train_ds, val_ds) for Logger in params['metric_loggers']])
 
-            for Model, mp in models_and_params:
-                model = Model(space_dim=space_dim, **mp, **cmp)
+            for Model, model_params in params['models']['list']:
+                model = Model(space_dim=space_dim, **model_params, **params['models']['common'])
 
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
-                    project=project,
+                    project=params['experiment']['project'],
                     name=f'{model.name()}_{attractor_name}_{split + 1}'
                 )
 
+                forecaster = LightningForecaster(model=model)
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'forecaster': {'name': model.name(), **model.hyperparams},
-                    'data': {'attractor': attractor_name, **dp},
-                    'dataloader': dlp,
-                    'experiment': ep
+                    'forecaster': {'name': model.name(), **forecaster.hparams},
+                    'data': {'attractor': attractor_name, **params['data']},
+                    'dataloader': params['dataloader'],
+                    'experiment': params['experiment'],
+                    'trainer': {k: f'{v}' for k, v in params['trainer']}
                 })
 
-                trainer = pl.Trainer(logger=wandb_logger, deterministic=True, **tp)
-                forecaster = LightningForecaster(model=model)
+                trainer = pl.Trainer(logger=wandb_logger, **params['trainer'])
                 trainer.fit(forecaster, train_dataloaders=chunk_train_dl, val_dataloaders=chunk_val_dl)
 
                 wandb_logger.experiment.finish(quiet=True)

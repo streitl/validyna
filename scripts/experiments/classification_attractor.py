@@ -12,7 +12,7 @@ from tqdm import tqdm
 from config import ROOT_DIR
 from ecodyna.data import TripletDataset, build_sliced_dataset, load_or_generate_and_save
 from ecodyna.mutitask_models import MultiTaskRNN
-from ecodyna.pl_wrappers import LightningFeaturizer
+from ecodyna.pl_wrappers import LightningFeaturizer, LightningClassifier
 
 if __name__ == '__main__':
     params = {
@@ -49,6 +49,7 @@ if __name__ == '__main__':
             'deterministic': True,
             'callbacks': [EarlyStopping('val_loss', patience=5)]
         },
+        'metric_loggers': [],
         'in_out': {
             'n_in': 5
         }
@@ -94,19 +95,8 @@ if __name__ == '__main__':
             train_datasets = {attractor_name: dataset['train'] for attractor_name, dataset in datasets.items()}
             val_datasets = {attractor_name: dataset['val'] for attractor_name, dataset in datasets.items()}
 
-            chunk_train_datasets = {
-                attractor_name: build_sliced_dataset(dataset, **params['in_out'])
-                for attractor_name, dataset in train_datasets.items()
-            }
-            chunk_val_datasets = {
-                attractor_name: build_sliced_dataset(dataset, **params['in_out'])
-                for attractor_name, dataset in val_datasets.items()
-            }
-            triplet_train_dataset = TripletDataset(chunk_train_datasets)
-            triplet_val_dataset = TripletDataset(chunk_val_datasets)
-
-            triplet_train_dl = DataLoader(triplet_train_dataset, **params['dataloader'])
-            triplet_val_dl = DataLoader(triplet_val_dataset, **params['dataloader'])
+            # TODO
+            train_datasets
 
             for Model, model_params in params['models']['all']:
                 model = Model(space_dim=space_dim, **model_params, **params['models']['common'])
@@ -127,7 +117,7 @@ if __name__ == '__main__':
                 })
 
                 model_trainer = pl.Trainer(logger=wandb_logger, deterministic=True, **params['trainer'])
-                featurizer = LightningFeaturizer(model=model)
-                model_trainer.fit(featurizer, train_dataloaders=triplet_train_dl, val_dataloaders=triplet_val_dl)
+                classifier = LightningClassifier(model=model)
+                model_trainer.fit(classifier, train_dataloaders=, val_dataloaders=)
 
                 wandb_logger.experiment.finish(quiet=True)

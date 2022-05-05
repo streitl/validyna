@@ -16,7 +16,7 @@ class LightningClassifier(pl.LightningModule):
 
     def get_loss_acc(self, batch):
         x, y = batch
-        out = self.model(x, kind='classification')
+        out = self.model(x, kind='classify')
         loss = F.cross_entropy(out, y)
         preds = torch.argmax(F.log_softmax(out), dim=1)
         acc = (y == preds).float().mean()
@@ -47,9 +47,9 @@ class LightningFeaturizer(pl.LightningModule):
 
     def get_loss(self, batch):
         a, p, n = batch
-        f_a = self.model(a, kind='featurization')
-        f_p = self.model(p, kind='featurization')
-        f_n = self.model(n, kind='featurization')
+        f_a = self.model(a, kind='featurize')
+        f_p = self.model(p, kind='featurize')
+        f_n = self.model(n, kind='featurize')
         loss = F.triplet_margin_loss(f_a, f_p, f_n)  # TODO check
         return loss
 
@@ -77,7 +77,7 @@ class LightningForecaster(pl.LightningModule):
 
     def get_loss(self, batch):
         x, y = batch
-        out = self.model(x, kind='forecasting')
+        out = self.model(x, kind='forecast')
         loss = F.mse_loss(out, y)
         return loss
 
