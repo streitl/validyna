@@ -1,7 +1,7 @@
 from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import RNNForecastMetricLogger
-from ecodyna.mutitask_models import MultiTaskRNN
+from ecodyna.mutitask_models import MyRNN
 from scripts.experiments.forecasting_experiment import run_forecasting_experiment
 
 if __name__ == '__main__':
@@ -23,8 +23,8 @@ if __name__ == '__main__':
         'models': {
             'common': {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1},
             'list': [
-                (MultiTaskRNN, {'forecast_type': 'one_by_one'}),
-                (MultiTaskRNN, {'forecast_type': 'multi'})
+                (MyRNN, {'forecast_type': 'one_by_one'}),
+                (MyRNN, {'forecast_type': 'multi'})
             ]
         },
         'dataloader': {

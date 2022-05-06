@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from config import ROOT_DIR
 from ecodyna.data import TripletDataset, build_sliced_dataset, load_or_generate_and_save
-from ecodyna.mutitask_models import MultiTaskRNN
+from ecodyna.mutitask_models import MyRNN
 from ecodyna.pl_wrappers import LightningFeaturizer, LightningClassifier
 
 if __name__ == '__main__':
@@ -36,8 +36,8 @@ if __name__ == '__main__':
                 'n_layers': 1
             },
             'list': [
-                (MultiTaskRNN, {'model': 'GRU'}),
-                (MultiTaskRNN, {'model': 'LSTM'})
+                (MyRNN, {'model': 'GRU'}),
+                (MyRNN, {'model': 'LSTM'})
             ]
         },
         'dataloader': {
