@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 
 import torch
 import torch.nn.functional as F
@@ -15,10 +15,10 @@ class NBEATS(nn.Module):
         def __init__(
                 self,
                 n_in: int,
-                n_out: int,
                 n_layers: int,
                 expansion_coefficient_dim: int,
-                layer_width: int
+                layer_width: int,
+                n_out: Optional[int] = None
         ):
             super().__init__()
             self.n_in = n_in
@@ -34,7 +34,12 @@ class NBEATS(nn.Module):
             self.FC_forecast = nn.Linear(layer_width, expansion_coefficient_dim)
 
             self.g_backcast = nn.Linear(expansion_coefficient_dim, n_in)
-            self.g_forecast = nn.Linear(expansion_coefficient_dim, n_out)
+            if n_out is not None:
+                self.g_forecast = nn.Linear(expansion_coefficient_dim, n_out)
+
+        def set_n_out(self, n_out: int):
+            self.n_out = n_out
+            self.g_forecast = nn.Linear(self.expansion_coefficient_dim, n_out)
 
         def forward_old(self, x: Tensor) -> Tuple[Tensor, Tensor]:
             for layer in self.FC_stack:
@@ -44,28 +49,34 @@ class NBEATS(nn.Module):
             forecast = self.g_forecast(self.FC_forecast(x))
             return backcast, forecast
 
-        def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-            backcast_expansion, forecast_expansion = self.get_expansions(x)
-            return self.forward_from_expansions(backcast_expansion, forecast_expansion)
-
         def get_expansions(self, x: Tensor) -> Tuple[Tensor, Tensor]:
             for layer in self.FC_stack:
                 x = F.relu(layer(x))
             return self.FC_backcast(x), self.FC_forecast(x)
 
-        def forward_from_expansions(self, backcast_expansion: Tensor, forecast_expansion: Tensor) -> Tuple[Tensor, Tensor]:
+        def forward_from_expansions(self, backcast_expansion: Tensor, forecast_expansion: Tensor) \
+                -> Tuple[Tensor, Tensor]:
             backcast = self.g_backcast(backcast_expansion)
             forecast = self.g_forecast(forecast_expansion)
             return backcast, forecast
 
+        def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+            backcast_expansion, forecast_expansion = self.get_expansions(x)
+            return self.forward_from_expansions(backcast_expansion, forecast_expansion)
+
     class _Stack(nn.Module):
-        def __init__(self, n_in: int, n_out: int, n_blocks: int, *args, **kwargs):
+        def __init__(self, n_in: int, n_blocks: int, n_out: Optional[int] = None, *args, **kwargs):
             super().__init__()
             self.n_in = n_in
             self.n_out = n_out
             self.n_blocks = n_blocks
 
-            self.blocks = nn.ModuleList([NBEATS._Block(n_in, n_out, *args, **kwargs) for _ in range(n_blocks)])
+            self.blocks = nn.ModuleList([NBEATS._Block(n_in, n_out=n_out, *args, **kwargs) for _ in range(n_blocks)])
+
+        def set_n_out(self, n_out: int):
+            self.n_out = n_out
+            for block in self.blocks:
+                block.set_n_out(n_out)
 
         def forward(self, x: Tensor):
             B, T = x.size()
@@ -80,12 +91,12 @@ class NBEATS(nn.Module):
     def __init__(
             self,
             n_in: int,
-            n_out: int,
-            n_stacks: int = 1,
-            n_blocks: int = 4,
-            n_layers: int = 4,
-            expansion_coefficient_dim: int = 5,
-            layer_widths: Union[int, List[int]] = 32
+            n_stacks: int,
+            n_blocks: int,
+            n_layers: int,
+            expansion_coefficient_dim: int,
+            layer_widths: Union[int, List[int]],
+            n_out: Optional[int] = None
     ):
         super().__init__()
 
@@ -113,7 +124,14 @@ class NBEATS(nn.Module):
         self.stacks[-1].blocks[-1].FC_backcast.requires_grad_(False)
         self.stacks[-1].blocks[-1].g_backcast.requires_grad_(False)
 
+    def set_n_out(self, n_out: int):
+        self.n_out = n_out
+        for stack in self.stacks:
+            stack.set_n_out(n_out)
+
     def forward(self, x: Tensor) -> Tensor:
+        if self.n_out is None:
+            raise ValueError('Did not give an `n_out` value to NBEATS')
         B, T = x.size()
         assert T == self.n_in, f'NBeats should take {self.n_in} time steps as input'
         backcast = x
@@ -131,6 +149,7 @@ class NBEATS(nn.Module):
         for s, stack in enumerate(self.stacks):
             for b, block in enumerate(stack.blocks):
                 backcast_expansion, forecast_expansion = block.get_expansions(backcast)
-                backcast = block.forward_from_expansions(backcast_expansion, forecast_expansion)
-                features[:, s * self.n_blocks + b] = forecast_expansion
-        return x
+                backcast = block.g_backcast(backcast_expansion)
+                i = (s * self.n_blocks + b) * self.expansion_coefficient_dim
+                features[:, i: i + self.expansion_coefficient_dim] = forecast_expansion
+        return features

@@ -45,8 +45,8 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
     ):
         super().__init__()
 
-        if n_classes is None and n_features is None and n_out is None:
-            raise ValueError(f'One of `n_classes`, `n_features`, `n_out` must be non-None')
+        assert n_classes is not None or n_features is not None or n_out is not None, \
+            'One of `n_classes`, `n_features`, `n_out` must be non-None'
 
         # common to all tasks
         self.n_in = check_int_arg(n_in, n_min=1, desc='number of input time steps')
@@ -58,7 +58,8 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         self.n_features = None
 
         self.hyperparams = {}
-        self.register_hyperparams(n_in=self.n_in, space_dim=self.space_dim)
+        self.register_hyperparams(n_in=n_in, space_dim=space_dim,
+                                  n_classes=n_classes, n_features=n_features, n_out=n_out)
 
     def register_hyperparams(self, **kwargs):
         self.hyperparams.update(**kwargs)
@@ -199,7 +200,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         pass
 
 
-class MultiTaskRNN(MultiTaskTimeSeriesModel):
+class MyRNN(MultiTaskTimeSeriesModel):
     """
     Implements LSTM and GRU.
     """
@@ -222,21 +223,23 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         assert model in ['GRU', 'LSTM'], 'Only GRU and LSTM are supported'
         assert forecast_type in ['multi', 'one_by_one'], '`forecast_type^ must be `multi` or `one_by_one`'
 
-        super().__init__(n_in=n_in, space_dim=space_dim)
-        self.register_hyperparams(n_classes=n_classes, n_features=n_features, n_out=n_out,
-                                  model=model, n_layers=n_layers, forecast_type=forecast_type, **kwargs)
+        # Make sure the RNN is at least a featurizer but don't force n_features to be given
+        if n_features is None:
+            n_features = n_hidden
+
+        super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
+        self.register_hyperparams(model=model, n_layers=n_layers, forecast_type=forecast_type, **kwargs)
 
         self.model = model
         self.n_layers = n_layers
         self.n_hidden = n_hidden
         self.forecast_type = forecast_type
 
-        self.rnn = getattr(nn, model)(batch_first=True, input_size=space_dim, hidden_size=n_features,
-                                      num_layers=n_layers, num_hidden=n_hidden, **kwargs)
+        self.rnn = getattr(nn, model)(batch_first=True, input_size=space_dim, hidden_size=n_hidden,
+                                      num_layers=n_layers, **kwargs)
 
         # RNNs are natural featurizers
-        if n_features is not None:
-            self.prepare_to_featurize(n_features=n_features)
+        self.prepare_to_featurize(n_features=n_features)
 
         self.classifier = None
         if n_classes is not None:
@@ -329,7 +332,7 @@ class MultiTaskRNN(MultiTaskTimeSeriesModel):
         return self.model
 
 
-class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
+class MyNBEATS(MultiTaskTimeSeriesModel):
     """
     Implements N-BEATS (Neural Basis Expansion Analysis for interpretable Time Series forecasting).
 
@@ -350,24 +353,30 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
             classifier: Optional[nn.Module] = None,
             **kwargs
     ):
-        super().__init__(n_in=n_in, space_dim=space_dim)
-        self.register_hyperparams(n_classes=n_classes, n_features=n_features, n_out=n_out, **kwargs)
+        # Make sure N-BEATS is at least a featurizer but don't force n_features to be given
+        if n_features is None:
+            n_features = n_blocks * n_stacks * expansion_coefficient_dim
+
+        super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
+        self.register_hyperparams(n_blocks=n_blocks, n_stacks=n_stacks,
+                                  expansion_coefficient_dim=expansion_coefficient_dim, **kwargs)
 
         self.n_blocks = n_blocks
         self.n_stacks = n_stacks
         self.expansion_coefficient_dim = expansion_coefficient_dim
 
-        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=n_out * space_dim, n_blocks=n_blocks, n_stacks=n_stacks,
-                             expansion_coefficient_dim=expansion_coefficient_dim, **kwargs)
+        flattened_n_out = n_out * space_dim if n_out is not None else None
+        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=flattened_n_out, n_blocks=n_blocks,
+                             n_stacks=n_stacks, expansion_coefficient_dim=expansion_coefficient_dim, **kwargs)
 
-        # N-BEATS is a natural forecaster
+        # N-BEATS is a natural forecaster ...
         if n_out is not None:
             self.prepare_to_forecast(n_out)
 
+        # ... but is also a featurizer relying on basis expansions
+        self.prepare_to_featurize(n_features=n_features)
+
         self.classifier = None
-        # Prepare for featurization BEFORE classification if both are needed
-        if n_features is not None:
-            self.prepare_to_featurize(n_features=n_features)
         if n_classes is not None:
             self.prepare_to_classify(n_classes=n_classes, classifier=classifier)
 
@@ -379,8 +388,8 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
         self.classifier = classifier or make_simple_mlp(self.n_features, self.n_classes)
 
     def prepare_to_forecast(self, n_out: int):
-        # N-BEATS is a natural forecaster
         super().prepare_to_forecast(n_out=n_out)
+        self.nbeats.set_n_out(n_out * self.space_dim)
 
     def prepare_to_featurize(self, n_features: int):
         assert n_features == self.n_stacks * self.n_blocks * self.expansion_coefficient_dim, \
@@ -416,7 +425,7 @@ class MultiTaskNBEATS(MultiTaskTimeSeriesModel):
         return 'N-BEATS'
 
 
-class MultiTaskTransformer(MultiTaskTimeSeriesModel):
+class MyTransformer(MultiTaskTimeSeriesModel):
 
     def __init__(
             self,
@@ -429,27 +438,31 @@ class MultiTaskTransformer(MultiTaskTimeSeriesModel):
             forecaster: Optional[nn.Module] = None,
             **kwargs
     ):
-        super().__init__(n_in=n_in, space_dim=space_dim)
-        self.register_hyperparams(n_classes=n_classes, n_features=n_features, n_out=n_out, **kwargs)
+        # Make sure the Transformer is at least a featurizer but don't force n_features to be given
+        if n_features is None:
+            n_features = space_dim
+
+        super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
+        self.register_hyperparams(**kwargs)
 
         # We instantiate an entire transformer even though we only use the encoder part
         self.transformer = nn.Transformer(d_model=space_dim, batch_first=True, **kwargs)
 
         # Even though Transformer is designed for seq2seq, it is really a featurizer that uses self-attention
-        if n_features is not None:
-            self.prepare_to_featurize(n_features=n_features)
+        self.prepare_to_featurize(n_features=n_features)
 
         self.classifier = None
-        self.forecaster = None
         if n_classes is not None:
             self.prepare_to_classify(n_classes=n_classes, classifier=classifier)
+
+        self.forecaster = None
         if n_out is not None:
             self.prepare_to_forecast(n_out=n_out, forecaster=forecaster)
 
     # Preparation methods
     def prepare_to_classify(self, n_classes: int, classifier: Optional[nn.Module] = None):
         super().prepare_to_classify(n_classes=n_classes)
-        self.classifier = classifier or self.default_classifier(self.n_features, self.n_classes)
+        self.classifier = classifier or make_simple_mlp(self.n_features, self.n_classes)
 
     def prepare_to_featurize(self, n_features: int):
         assert n_features == self.space_dim, f'For this implementation of {self.name()}, the features of a sequence' \
@@ -459,7 +472,7 @@ class MultiTaskTransformer(MultiTaskTimeSeriesModel):
 
     def prepare_to_forecast(self, n_out: int, forecaster: Optional[nn.Module] = None):
         super().prepare_to_forecast(n_out)
-        self.forecaster = forecaster or self.default_forecaster(self.n_features, self.n_out * self.space_dim)
+        self.forecaster = forecaster or make_simple_mlp(self.n_features, self.n_out * self.space_dim)
 
     # Forward methods
     def _forward_classify(self, x: Tensor) -> Tensor:
