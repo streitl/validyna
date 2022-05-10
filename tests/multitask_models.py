@@ -26,38 +26,43 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
 
     def test_can_build_classifier(self):
         for Model, params in models:
-            model = Model(n_classes=10, **params, **common_parameters)
+            model = Model(n_features=12, n_classes=10, **params, **common_parameters)
             self.assertTrue(model.is_prepared_to_classify())
+
+    def test_can_build_featurizer(self):
+        for Model, params in models:
+            model = Model(n_features=12, **params, **common_parameters)
+            self.assertTrue(model.is_prepared_to_featurize())
 
     def test_can_build_forecaster(self):
         for Model, params in models:
-            model = Model(n_out=12, **params, **common_parameters)
+            model = Model(n_features=12, n_out=12, **params, **common_parameters)
             self.assertTrue(model.is_prepared_to_forecast())
 
     def test_can_build_all_at_once(self):
         for Model, params in models:
-            model = Model(n_classes=10, n_out=12, **params, **common_parameters)
+            model = Model(n_features=10, n_classes=10, n_out=12, **params, **common_parameters)
             self.assertTrue(model.is_prepared_to_classify())
             self.assertTrue(model.is_prepared_to_featurize())
             self.assertTrue(model.is_prepared_to_forecast())
 
     def test_classify_shape(self):
         for Model, params in models:
-            model = Model(n_classes=10, **params, **common_parameters)
+            model = Model(n_features=12, n_classes=10, **params, **common_parameters)
             x = torch.rand((2, model.n_in, model.space_dim))
             y = model(x, kind='classify')
             self.assertTrue(y.size() == (2, model.n_classes))
 
     def test_featurize_shape(self):
         for Model, params in models:
-            model = Model(**params, **common_parameters)
+            model = Model(n_features=12, **params, **common_parameters)
             x = torch.rand((2, model.n_in, model.space_dim))
             y = model(x, kind='featurize')
             self.assertTrue(y.size() == (2, model.n_features))
 
     def test_forecast_shape(self):
         for Model, params in models:
-            model = Model(n_out=10, **params, **common_parameters)
+            model = Model(n_features=12, n_out=10, **params, **common_parameters)
             x = torch.rand((2, model.n_in, model.space_dim))
             y = model(x, kind='forecast')
             self.assertTrue(y.size() == (2, model.n_out, model.space_dim))

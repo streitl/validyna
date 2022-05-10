@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 from config import ROOT_DIR
 from ecodyna.data import TripletDataset, build_slices, load_or_generate_and_save
-from ecodyna.mutitask_models import MyRNN
 from ecodyna.pl_wrappers import LightningFeaturizer
+from scripts.defaults import all_models
 
 if __name__ == '__main__':
     params = {
@@ -32,13 +32,10 @@ if __name__ == '__main__':
         },
         'models': {
             'common': {
-                'n_features': 5,
+                'n_features': 10,
                 'n_layers': 1
             },
-            'list': [
-                (MyRNN, {'model': 'GRU'}),
-                (MyRNN, {'model': 'LSTM'})
-            ]
+            'list': all_models
         },
         'dataloader': {
             'batch_size': 64,

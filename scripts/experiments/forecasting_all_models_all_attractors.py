@@ -1,8 +1,8 @@
 from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import ForecastMetricLogger
-from ecodyna.mutitask_models import MyRNN, MyNBEATS, MyTransformer
 from scripts.experiments.forecasting_experiment import run_forecasting_experiment
+from scripts.defaults import all_models
 
 if __name__ == '__main__':
     params = {
@@ -20,15 +20,8 @@ if __name__ == '__main__':
             'ic_noise': 0.01
         },
         'models': {
-            'common': dict(),
-            'list': [
-                (MyNBEATS, {
-                    'n_stacks': 4, 'n_blocks': 2, 'expansion_coefficient_dim': 5, 'n_layers': 4, 'layer_widths': 16
-                }),
-                (MyTransformer, {}),
-                (MyRNN, {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1}),
-                (MyRNN, {'model': 'GRU', 'n_hidden': 32, 'n_layers': 1}),
-            ]
+            'common': {},
+            'list': all_models
         },
         'dataloader': {
             'batch_size': 64,

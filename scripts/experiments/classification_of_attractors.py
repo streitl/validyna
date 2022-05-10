@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 from config import ROOT_DIR
 from ecodyna.data import load_or_generate_and_save, build_slices
-from ecodyna.mutitask_models import MyRNN, MyNBEATS, MyTransformer
 from ecodyna.pl_wrappers import LightningClassifier
+from scripts.defaults import all_models
 
 if __name__ == '__main__':
     params = {
@@ -31,15 +31,8 @@ if __name__ == '__main__':
             'ic_noise': 0.01
         },
         'models': {
-            'common': {},
-            'list': [
-                (MyNBEATS, {
-                    'n_stacks': 4, 'n_blocks': 2, 'expansion_coefficient_dim': 5, 'n_layers': 4, 'layer_widths': 16
-                }),
-                (MyTransformer, {}),
-                (MyRNN, {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1}),
-                (MyRNN, {'model': 'GRU', 'n_hidden': 32, 'n_layers': 1}),
-            ]
+            'common': {'n_features': 32},
+            'list': all_models
         },
         'dataloader': {
             'batch_size': 64,

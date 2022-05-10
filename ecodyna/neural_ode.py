@@ -1,3 +1,4 @@
+"""
 import pytorch_lightning as pl
 from torch import nn
 from torch.optim import AdamW
@@ -35,3 +36,4 @@ class PLNeuralODE(pl.LightningModule):
 
     def predict_dataloader(self):
         pass
+"""
