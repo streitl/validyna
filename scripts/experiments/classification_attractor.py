@@ -3,16 +3,17 @@ import os
 import dysts.base
 import dysts.flows
 import pytorch_lightning as pl
+import torch
 from dysts.base import DynSysDelay
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
-from torch.utils.data import TensorDataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, DataLoader, random_split, ConcatDataset
 from tqdm import tqdm
 
 from config import ROOT_DIR
-from ecodyna.data import TripletDataset, build_sliced_dataset, load_or_generate_and_save
-from ecodyna.mutitask_models import MyRNN
-from ecodyna.pl_wrappers import LightningFeaturizer, LightningClassifier
+from ecodyna.data import load_or_generate_and_save, build_slices
+from ecodyna.mutitask_models import MyRNN, MyNBEATS, MyTransformer
+from ecodyna.pl_wrappers import LightningClassifier
 
 if __name__ == '__main__':
     params = {
@@ -23,7 +24,6 @@ if __name__ == '__main__':
             'n_splits': 5
         },
         'data': {
-            'attractor': 'Lorenz',
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -31,13 +31,14 @@ if __name__ == '__main__':
             'ic_noise': 0.01
         },
         'models': {
-            'common': {
-                'n_features': 5,
-                'n_layers': 1
-            },
+            'common': {},
             'list': [
-                (MyRNN, {'model': 'GRU'}),
-                (MyRNN, {'model': 'LSTM'})
+                (MyNBEATS, {
+                    'n_stacks': 4, 'n_blocks': 2, 'expansion_coefficient_dim': 5, 'n_layers': 4, 'layer_widths': 16
+                }),
+                (MyTransformer, {}),
+                (MyRNN, {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1}),
+                (MyRNN, {'model': 'GRU', 'n_hidden': 32, 'n_layers': 1}),
             ]
         },
         'dataloader': {
@@ -79,31 +80,39 @@ if __name__ == '__main__':
             attractors_per_dim[space_dim] = []
         attractors_per_dim[space_dim].append(attractor)
 
-    for space_dim, attractors in attractors_per_dim.items():
+    for space_dim, attractors in list(attractors_per_dim.items()):
         datasets = {}
         print(f'Generating trajectories for attractors of dimension {space_dim}')
         for attractor in tqdm(attractors):
             attractor_x0 = attractor.ic.copy()
-            data = load_or_generate_and_save(attractor, **params['data'])
-            datasets[attractor.name] = TensorDataset(data)
+            datasets[attractor.name] = TensorDataset(load_or_generate_and_save(attractor, **params['data']))
+
+        n_classes = len(attractors)
 
         for split in range(params['experiment']['n_splits']):
-            datasets = {
-                attractor_name: dict(zip(['train', 'val'], random_split(dataset, [train_size, val_size])))
-                for attractor_name, dataset in datasets.items()
-            }
-            train_datasets = {attractor_name: dataset['train'] for attractor_name, dataset in datasets.items()}
-            val_datasets = {attractor_name: dataset['val'] for attractor_name, dataset in datasets.items()}
 
-            # TODO
-            train_datasets
+            train_datasets = []
+            val_datasets = []
+            for class_n, (attractor_name, dataset) in enumerate(datasets.items()):
+                train_trajectories, val_trajectories = random_split(dataset, [train_size, val_size])
+                X_train = build_slices(train_trajectories, **params['in_out'])
+                X_val = build_slices(val_trajectories, **params['in_out'])
 
-            for Model, model_params in params['models']['all']:
-                model = Model(space_dim=space_dim, **model_params, **params['models']['common'])
+                y_train = torch.full(size=(len(X_train),), fill_value=class_n)
+                y_val = torch.full(size=(len(X_val),), fill_value=class_n)
+
+                train_datasets.append(TensorDataset(X_train, y_train))
+                val_datasets.append(TensorDataset(X_val, y_val))
+
+            train_dl = DataLoader(ConcatDataset(train_datasets), **params['dataloader'], shuffle=True)
+            val_dl = DataLoader(ConcatDataset(val_datasets), **params['dataloader'])
+
+            for Model, model_params in params['models']['list']:
+                model = Model(space_dim=space_dim, n_classes=n_classes, **model_params, **params['models']['common'])
 
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
-                    project='featurization-triplet-loss',
+                    project='classification-of-attractor',
                     name=f'{model.name()}_dim_{space_dim}_split_{split + 1}'
                 )
 
@@ -113,11 +122,11 @@ if __name__ == '__main__':
                     'data': params['data'],
                     'dataloader': params['dataloader'],
                     'experiment': params['experiment'],
-                    'trainer': {k: f'{v}' for k, v in params['trainer']}
+                    'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
                 })
 
-                model_trainer = pl.Trainer(logger=wandb_logger, deterministic=True, **params['trainer'])
+                model_trainer = pl.Trainer(logger=wandb_logger, **params['trainer'])
                 classifier = LightningClassifier(model=model)
-                model_trainer.fit(classifier, train_dataloaders=, val_dataloaders=)
+                model_trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
                 wandb_logger.experiment.finish(quiet=True)

@@ -66,19 +66,13 @@ def load_or_generate_and_save(
 
 
 # Used for featurization and classification
-def build_sliced_dataset(dataset: Dataset, n_in: int) -> Dataset:
+def build_slices(dataset: Dataset, n_in: int) -> Tensor:
     slices = torch.stack([
         tensor[i:i + n_in, :]
         for (tensor,) in dataset
         for i in range(tensor.size(0) - n_in)
     ])
-    return TensorDataset(slices)
-
-
-def build_classification_dataset(dataset: Dataset, n_in: int, class_number: int) -> Dataset:
-    # TODO
-    sliced_dataset = build_sliced_dataset(dataset, n_in)
-    F.one_hot()
+    return slices
 
 
 # Used for forecasting
@@ -99,11 +93,11 @@ def build_data_path(**dp) -> str:
 
 class TripletDataset(Dataset):
 
-    def __init__(self, datasets_per_class: dict[str, TensorDataset]):
-        assert len(datasets_per_class.keys()) > 1, 'There must be more than 1 class in the given datasets'
-        self.datasets = datasets_per_class
+    def __init__(self, tensors_per_class: dict[str, Tensor]):
+        assert len(tensors_per_class.keys()) > 1, 'There must be more than 1 class in the given datasets'
+        self.tensors = tensors_per_class
         self.classes = list(self.datasets.keys())
-        self.class_sizes = {k: len(v) for k, v in self.datasets.items()}
+        self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
 
     def __getitem__(self, index: int):
         # Anchor class is sampled deterministically and uniformly
@@ -114,13 +108,11 @@ class TripletDataset(Dataset):
         # Anchor and positive points are sampled randomly (could be the same)
         anchor_idx = random.randint(0, self.class_sizes[anchor_class] - 1)
         positive_idx = random.randint(0, self.class_sizes[anchor_class] - 1)
-        anchor = self.datasets[anchor_class][anchor_idx]
-        positive = self.datasets[anchor_class][positive_idx]
+        anchor = self.tensors[anchor_class][anchor_idx]
+        positive = self.tensors[anchor_class][positive_idx]
         negative_idx = random.randint(0, self.class_sizes[negative_class] - 1)
-        negative = self.datasets[negative_class][negative_idx]
-        # print(f'{anchor_class} ({anchor_idx} and {positive_idx}) vs {negative_class} ({negative_idx})')
-        # These are all tensor tuples of size 1
-        return anchor[0], positive[0], negative[0]
+        negative = self.tensors[negative_class][negative_idx]
+        return anchor, positive, negative
 
     def __len__(self):
         # TODO check if this makes any sense

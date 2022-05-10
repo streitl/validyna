@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 from tqdm import tqdm
 
 from config import ROOT_DIR
-from ecodyna.data import TripletDataset, build_sliced_dataset, load_or_generate_and_save
+from ecodyna.data import TripletDataset, build_slices, load_or_generate_and_save
 from ecodyna.mutitask_models import MyRNN
 from ecodyna.pl_wrappers import LightningFeaturizer
 
@@ -95,11 +95,11 @@ if __name__ == '__main__':
             val_datasets = {attractor_name: dataset['val'] for attractor_name, dataset in datasets.items()}
 
             chunk_train_datasets = {
-                attractor_name: build_sliced_dataset(dataset, **params['in_out'])
+                attractor_name: build_slices(dataset, **params['in_out'])
                 for attractor_name, dataset in train_datasets.items()
             }
             chunk_val_datasets = {
-                attractor_name: build_sliced_dataset(dataset, **params['in_out'])
+                attractor_name: build_slices(dataset, **params['in_out'])
                 for attractor_name, dataset in val_datasets.items()
             }
             triplet_train_dataset = TripletDataset(chunk_train_datasets)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
                     'data': params['data'],
                     'dataloader': params['dataloader'],
                     'experiment': params['experiment'],
-                    'trainer': {k: f'{v}' for k, v in params['trainer']}
+                    'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
                 })
 
                 model_trainer = pl.Trainer(logger=wandb_logger, deterministic=True, **params['trainer'])

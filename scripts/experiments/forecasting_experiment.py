@@ -39,7 +39,7 @@ def run_forecasting_experiment(params: dict):
                                       **params['dataloader'])
 
             # Add metric loggers to the list of trainer callbacks
-            params['trainer']['callbacks'].append([Logger(train_ds, val_ds) for Logger in params['metric_loggers']])
+            params['trainer']['callbacks'].extend([Logger(train_ds, val_ds) for Logger in params['metric_loggers']])
 
             for Model, model_params in params['models']['list']:
                 model = Model(space_dim=space_dim, **model_params, **params['models']['common'])
@@ -57,7 +57,7 @@ def run_forecasting_experiment(params: dict):
                     'data': {'attractor': attractor_name, **params['data']},
                     'dataloader': params['dataloader'],
                     'experiment': params['experiment'],
-                    'trainer': {k: f'{v}' for k, v in params['trainer']}
+                    'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
                 })
 
                 trainer = pl.Trainer(logger=wandb_logger, **params['trainer'])

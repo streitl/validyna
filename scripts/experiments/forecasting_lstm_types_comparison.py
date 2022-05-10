@@ -13,7 +13,6 @@ if __name__ == '__main__':
             'n_splits': 5
         },
         'data': {
-            'attractor': 'Lorenz',
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -33,6 +32,7 @@ if __name__ == '__main__':
         },
         'trainer': {
             'max_epochs': 50,
+            'deterministic': True,
             'callbacks': [EarlyStopping('val_loss', patience=5)]
         },
         'metric_loggers': [RNNForecastMetricLogger],

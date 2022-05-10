@@ -13,7 +13,6 @@ if __name__ == '__main__':
             'n_splits': 5
         },
         'data': {
-            'attractor': 'Lorenz',
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -21,12 +20,14 @@ if __name__ == '__main__':
             'ic_noise': 0.01
         },
         'models': {
-            'common': {},
+            'common': dict(),
             'list': [
+                (MyNBEATS, {
+                    'n_stacks': 4, 'n_blocks': 2, 'expansion_coefficient_dim': 5, 'n_layers': 4, 'layer_widths': 16
+                }),
+                (MyTransformer, {}),
                 (MyRNN, {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1}),
                 (MyRNN, {'model': 'GRU', 'n_hidden': 32, 'n_layers': 1}),
-                (MyNBEATS, {'n_stacks': 4, 'n_blocks': 4, 'expansion_coefficient_dim': 5}),
-                (MyTransformer, {})
             ]
         },
         'dataloader': {
@@ -35,7 +36,8 @@ if __name__ == '__main__':
         },
         'trainer': {
             'max_epochs': 50,
-            'callbacks': [EarlyStopping('val_loss', patience=5)]
+            'deterministic': True,
+            'callbacks': [EarlyStopping('val_loss', patience=3)]
         },
         'metric_loggers': [ForecastMetricLogger],
         'in_out': {
