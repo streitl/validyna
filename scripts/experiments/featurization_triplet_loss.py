@@ -6,7 +6,7 @@ from ecodyna.tasks.featurization import run_triplet_featurization_experiment
 if __name__ == '__main__':
     params = {
         'experiment': {
-            'project': 'lstm-forecasting-comparison',
+            'project': 'featurization-triplet-loss',
             'train_part': 0.75,
             'random_seed': 26,
             'n_splits': 5

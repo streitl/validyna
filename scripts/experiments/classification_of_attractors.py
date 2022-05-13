@@ -7,7 +7,7 @@ from ecodyna.tasks.classification import run_classification_of_attractors_experi
 if __name__ == '__main__':
     params = {
         'experiment': {
-            'project': 'lstm-forecasting-comparison',
+            'project': 'classification-of-attractors',
             'train_part': 0.75,
             'random_seed': 26,
             'n_splits': 5
@@ -28,11 +28,11 @@ if __name__ == '__main__':
             'num_workers': 8
         },
         'trainer': {
-            'max_epochs': 50,
+            'max_epochs': 2,  # 50,
             'deterministic': True,
             'val_check_interval': 1 / 16,
             'limit_val_batches': 1 / 16,
-            'callbacks': [EarlyStopping('val_loss', patience=3)]
+            'callbacks': []  # [EarlyStopping('val_loss', patience=3)]
         },
         'metric_loggers': [],
         'in_out': {

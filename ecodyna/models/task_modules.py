@@ -22,16 +22,17 @@ class ChunkClassifier(pl.LightningModule):
         acc = (y == preds).float().mean()
         return loss, acc
 
+    # TODO check the effects of setting on_step and on_epoch inside self.log
     def training_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
-        self.log('train_acc', acc, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('loss', {'train': loss})
+        self.log('acc', {'train': acc}, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('val_loss', loss, on_step=True, on_epoch=True)
-        self.log('val_acc', acc, on_step=True, on_epoch=True)
+        self.log('loss', {'val': loss})
+        self.log('acc', {'val': acc})
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch

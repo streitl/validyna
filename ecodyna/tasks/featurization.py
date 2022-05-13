@@ -72,7 +72,7 @@ def run_triplet_featurization_experiment(params: dict):
 
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
-                    project='featurization-triplet-loss',
+                    project=params['experiment']['project'],
                     name=f'{model.name()}_dim_{space_dim}_split_{split + 1}'
                 )
 

@@ -65,14 +65,15 @@ def run_classification_of_attractors_experiment(params: dict):
                 val_datasets.append(TensorDataset(X_val, y_val))
 
             train_dl = DataLoader(ConcatDataset(train_datasets), **params['dataloader'], shuffle=True)
-            val_dl = DataLoader(ConcatDataset(val_datasets), **params['dataloader'])
+            val_dl = DataLoader(ConcatDataset(val_datasets), **params['dataloader'], shuffle=True)
 
             for Model, model_params in params['models']['list']:
                 model = Model(space_dim=space_dim, n_classes=n_classes, **model_params, **params['models']['common'])
+                classifier = ChunkClassifier(model=model)
 
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
-                    project='classification-of-attractors',
+                    project=params['experiment']['project'],
                     name=f'{model.name()}_dim_{space_dim}_split_{split + 1}'
                 )
 
@@ -86,7 +87,6 @@ def run_classification_of_attractors_experiment(params: dict):
                 })
 
                 model_trainer = pl.Trainer(logger=wandb_logger, **params['trainer'])
-                classifier = ChunkClassifier(model=model)
                 model_trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
                 wandb_logger.experiment.finish(quiet=True)
