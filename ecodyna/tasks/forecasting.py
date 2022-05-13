@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 
 from config import ROOT_DIR
 from ecodyna.data import load_or_generate_and_save, build_in_out_pair_dataset
-from ecodyna.pl_wrappers import LightningForecaster
+from ecodyna.models.task_modules import ChunkForecaster
 
 
 def run_forecasting_experiment(params: dict):
@@ -50,7 +50,7 @@ def run_forecasting_experiment(params: dict):
                     name=f'{model.name()}_{attractor_name}_{split + 1}'
                 )
 
-                forecaster = LightningForecaster(model=model)
+                forecaster = ChunkForecaster(model=model)
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
                     'forecaster': {'name': model.name(), **forecaster.hparams},

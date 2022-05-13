@@ -4,8 +4,8 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from ecodyna.mutitask_models import MyRNN
-from ecodyna.pl_wrappers import LightningForecaster
+from ecodyna.models.mutitask_models import MyRNN
+from ecodyna.models.task_modules import ChunkForecaster
 
 
 class DatasetMetricLogger(pl.Callback, ABC):
@@ -22,7 +22,7 @@ class ForecastMetricLogger(DatasetMetricLogger):
     def __init__(self, train_dataset: Dataset, val_dataset: Dataset):
         super().__init__(train_dataset, val_dataset)
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: LightningForecaster):
+    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: ChunkForecaster):
         model = forecaster.model
         metrics = {}
         for dataset_name, dataset in [('train', self.train_dataset), ('val', self.val_dataset)]:
@@ -43,7 +43,7 @@ class RNNForecastMetricLogger(ForecastMetricLogger):
     def __init__(self, train_dataset: Dataset, val_dataset: Dataset):
         super().__init__(train_dataset, val_dataset)
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: LightningForecaster):
+    def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: ChunkForecaster):
         if not isinstance(forecaster.model, MyRNN):
             raise ValueError(f'This Callback can only be applied to MultiTaskRNN')
         rnn: MyRNN = forecaster.model

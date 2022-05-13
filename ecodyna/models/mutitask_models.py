@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 
-from ecodyna.nbeats import NBEATS
+from ecodyna.models.nbeats import NBEATS
 
 
 def check_int_arg(arg: any, n_min: int, desc: str):
@@ -280,7 +280,7 @@ class MyRNN(MultiTaskTimeSeriesModel):
 
     def prepare_to_forecast(self, n_out: int, forecaster: Optional[nn.Module] = None):
         if not self.is_prepared_to_featurize():
-            raise ValueError(f'Prepare {self.name()} to featurize before preparing to classify')
+            raise ValueError(f'Prepare {self.name()} to featurize before preparing to forecast')
         super().prepare_to_forecast(n_out=n_out)
         true_n_out = self.space_dim * (1 if self.forecast_type == 'one_by_one' else self.n_out)
         self.forecaster = forecaster or make_simple_mlp(i=self.n_features, h=self.n_features, o=true_n_out)
@@ -317,7 +317,8 @@ class MyRNN(MultiTaskTimeSeriesModel):
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
-            ts[:, i, :] = self.forecaster(out[:, -1, :])
+            features = self.featurizer(out[:, -1, :])
+            ts[:, i, :] = self.forecaster(features)
             out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
         return ts
 
@@ -331,7 +332,8 @@ class MyRNN(MultiTaskTimeSeriesModel):
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
-            ts[:, i, :] = self.forecaster(out[:, -1, :]).reshape(B, self.n_out, D)[:, 0, :]
+            features = self.featurizer(out[:, -1, :])
+            ts[:, i, :] = self.forecaster(features).reshape(B, self.n_out, D)[:, 0, :]  # only keep first timestep
             out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
         return ts
 
@@ -381,7 +383,7 @@ class MyNBEATS(MultiTaskTimeSeriesModel):
     ):
         self._natural_n_features = n_blocks * n_stacks * expansion_coefficient_dim
 
-        if (n_features and n_out) is None:
+        if n_features is None and n_out is None:
             n_features = self._natural_n_features
 
         super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
@@ -393,8 +395,8 @@ class MyNBEATS(MultiTaskTimeSeriesModel):
         self.expansion_coefficient_dim = expansion_coefficient_dim
 
         flattened_n_out = n_out * space_dim if n_out is not None else None
-        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=flattened_n_out, n_blocks=n_blocks,
-                             n_stacks=n_stacks, expansion_coefficient_dim=expansion_coefficient_dim, **kwargs)
+        self.nbeats = NBEATS(n_in=n_in * space_dim, n_out=flattened_n_out, n_blocks=n_blocks, n_stacks=n_stacks,
+                             expansion_coefficient_dim=expansion_coefficient_dim, **kwargs)
 
         self.classifier = None
         self.featurizer = None
@@ -507,7 +509,7 @@ class MyTransformer(MultiTaskTimeSeriesModel):
 
     def prepare_to_forecast(self, n_out: int, forecaster: Optional[nn.Module] = None):
         if not self.is_prepared_to_featurize():
-            raise ValueError(f'Prepare {self.name()} to featurize before preparing to classify')
+            raise ValueError(f'Prepare {self.name()} to featurize before preparing to forecast')
         super().prepare_to_forecast(n_out)
         self.forecaster = forecaster or make_simple_mlp(i=self.n_features, h=self.n_features,
                                                         o=self.n_out * self.space_dim)

@@ -1,4 +1,4 @@
-from ecodyna.mutitask_models import MyNBEATS, MyTransformer, MyRNN
+from ecodyna.models.mutitask_models import MyNBEATS, MyTransformer, MyRNN
 
 all_models = [
     (MyNBEATS, {

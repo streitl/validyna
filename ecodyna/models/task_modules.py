@@ -3,10 +3,10 @@ import torch
 import torch.nn.functional as F
 from torch.optim import AdamW
 
-from ecodyna.mutitask_models import MultiTaskTimeSeriesModel
+from ecodyna.models.mutitask_models import MultiTaskTimeSeriesModel
 
 
-class LightningClassifier(pl.LightningModule):
+class ChunkClassifier(pl.LightningModule):
 
     def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,14 +24,14 @@ class LightningClassifier(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('train_loss', loss)
-        self.log('train_acc', acc, prog_bar=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('train_acc', acc, prog_bar=True, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('val_loss', loss)
-        self.log('val_acc', acc)
+        self.log('val_loss', loss, on_step=True, on_epoch=True)
+        self.log('val_acc', acc, on_step=True, on_epoch=True)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -43,7 +43,7 @@ class LightningClassifier(pl.LightningModule):
         return AdamW(self.parameters(), lr=self.lr)
 
 
-class LightningFeaturizer(pl.LightningModule):
+class ChunkTripletFeaturizer(pl.LightningModule):
 
     def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,12 +61,12 @@ class LightningFeaturizer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, on_step=True, on_epoch=True)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -76,7 +76,7 @@ class LightningFeaturizer(pl.LightningModule):
         return AdamW(self.parameters(), lr=self.lr)
 
 
-class LightningForecaster(pl.LightningModule):
+class ChunkForecaster(pl.LightningModule):
 
     def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,12 +93,12 @@ class LightningForecaster(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, on_step=True, on_epoch=True)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (tensor,) = batch

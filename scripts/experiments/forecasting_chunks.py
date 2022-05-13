@@ -1,8 +1,8 @@
 from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import ForecastMetricLogger
-from scripts.experiments.forecasting_experiment import run_forecasting_experiment
-from scripts.defaults import all_models
+from ecodyna.tasks.forecasting import run_forecasting_experiment
+from scripts.experiments.defaults import all_models
 
 if __name__ == '__main__':
     params = {
@@ -30,6 +30,7 @@ if __name__ == '__main__':
         'trainer': {
             'max_epochs': 50,
             'deterministic': True,
+            'val_check_interval': 10,
             'callbacks': [EarlyStopping('val_loss', patience=3)]
         },
         'metric_loggers': [ForecastMetricLogger],
