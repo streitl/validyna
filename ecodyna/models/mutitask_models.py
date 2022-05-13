@@ -488,7 +488,7 @@ class MyTransformer(MultiTaskTimeSeriesModel):
         # To allow any d_model value
         self.linear = nn.Linear(space_dim, d_model)
         # We instantiate an entire transformer even though we only use the encoder part
-        self.transformer = nn.Transformer(d_model=space_dim, batch_first=True, **kwargs)
+        self.transformer = nn.Transformer(d_model=d_model, batch_first=True, **kwargs)
 
         self.classifier = None
         self.featurizer = None

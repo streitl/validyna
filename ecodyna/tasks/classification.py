@@ -45,7 +45,6 @@ def run_classification_of_attractors_experiment(params: dict):
         datasets = {}
         print(f'Generating trajectories for attractors of dimension {space_dim}')
         for attractor in tqdm(attractors):
-            attractor_x0 = attractor.ic.copy()
             datasets[attractor.name] = TensorDataset(load_or_generate_and_save(attractor, **params['data']))
 
         n_classes = len(attractors)
