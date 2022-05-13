@@ -39,6 +39,7 @@ def run_classification_of_attractors_experiment(params: dict):
         attractors_per_dim[space_dim].append(attractor)
 
     for space_dim, attractors in list(attractors_per_dim.items()):
+        # TODO remove
         if space_dim != 4:
             continue
         datasets = {}
@@ -72,13 +73,13 @@ def run_classification_of_attractors_experiment(params: dict):
 
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
-                    project='classification-of-attractor',
+                    project='classification-of-attractors',
                     name=f'{model.name()}_dim_{space_dim}_split_{split + 1}'
                 )
 
                 wandb_logger.experiment.config.update({
                     'split_n': split + 1,
-                    'featurizer': {'name': model.name(), **model.hyperparams},
+                    'classifier': {'name': model.name(), **model.hyperparams},
                     'data': params['data'],
                     'dataloader': params['dataloader'],
                     'experiment': params['experiment'],

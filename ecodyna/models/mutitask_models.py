@@ -466,6 +466,7 @@ class MyTransformer(MultiTaskTimeSeriesModel):
             self,
             n_in: int,
             space_dim: int,
+            d_model: int,
             n_classes: Optional[int] = None,
             n_features: Optional[int] = None,
             n_out: Optional[int] = None,
@@ -474,14 +475,18 @@ class MyTransformer(MultiTaskTimeSeriesModel):
             forecaster: Optional[nn.Module] = None,
             **kwargs
     ):
-        self._natural_n_features = n_in * space_dim
+        self._natural_n_features = n_in * d_model
 
         if n_features is None:
             n_features = self._natural_n_features
 
         super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
-        self.register_hyperparams(**kwargs)
+        self.register_hyperparams(d_model=d_model, **kwargs)
 
+        self.d_model = d_model
+
+        # To allow any d_model value
+        self.linear = nn.Linear(space_dim, d_model)
         # We instantiate an entire transformer even though we only use the encoder part
         self.transformer = nn.Transformer(d_model=space_dim, batch_first=True, **kwargs)
 
@@ -521,7 +526,7 @@ class MyTransformer(MultiTaskTimeSeriesModel):
 
     def _forward_featurize(self, x: Tensor) -> Tensor:
         B, T, D = x.size()
-        natural_features = self.transformer.encoder(x).reshape(B, T * D)
+        natural_features = self.transformer.encoder(self.linear(x)).reshape(B, self.n_in * self.d_model)
         features = self.featurizer(natural_features)
         return features
 
