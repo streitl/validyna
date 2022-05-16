@@ -4,7 +4,6 @@ import dysts.base
 import dysts.flows
 import pytorch_lightning as pl
 import torch
-from dysts.base import DynSysDelay
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader, random_split, ConcatDataset
 from tqdm import tqdm
@@ -25,12 +24,8 @@ def run_classification_of_attractors_experiment(params: dict):
     val_size = params['data']['trajectory_count'] - train_size
 
     attractors_per_dim = {}
-    for attractor_name in dysts.base.get_attractor_list():
+    for attractor_name in params['data']['attractors']:
         attractor = getattr(dysts.flows, attractor_name)()
-
-        # For speedup TODO remove
-        if hasattr(attractor, '_postprocessing') or isinstance(attractor, DynSysDelay):
-            continue
 
         space_dim = len(attractor.ic)
 
@@ -38,9 +33,10 @@ def run_classification_of_attractors_experiment(params: dict):
             attractors_per_dim[space_dim] = []
         attractors_per_dim[space_dim].append(attractor)
 
+    print({k: len(v) for k, v in attractors_per_dim.items()})
     for space_dim, attractors in list(attractors_per_dim.items()):
         # TODO remove
-        if space_dim != 4:
+        if space_dim != 10:
             continue
         datasets = {}
         print(f'Generating trajectories for attractors of dimension {space_dim}')

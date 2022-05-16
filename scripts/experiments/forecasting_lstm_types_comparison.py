@@ -1,7 +1,8 @@
+import dysts.base
 from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import RNNForecastMetricLogger
-from ecodyna.models.mutitask_models import MyRNN
+from ecodyna.models.mutitask_models import MyLSTM
 from ecodyna.tasks.forecasting import run_forecasting_experiment
 
 if __name__ == '__main__':
@@ -13,6 +14,7 @@ if __name__ == '__main__':
             'n_splits': 5
         },
         'data': {
+            'attractors': dysts.base.get_attractor_list(),
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -20,10 +22,10 @@ if __name__ == '__main__':
             'ic_noise': 0.01
         },
         'models': {
-            'common': {'model': 'LSTM', 'n_hidden': 32, 'n_layers': 1},
+            'common': {'n_hidden': 32, 'n_layers': 1},
             'list': [
-                (MyRNN, {'forecast_type': 'one_by_one'}),
-                (MyRNN, {'forecast_type': 'multi'})
+                (MyLSTM, {'forecast_type': 'one_by_one'}),
+                (MyLSTM, {'forecast_type': 'multi'})
             ]
         },
         'dataloader': {

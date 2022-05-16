@@ -45,7 +45,7 @@ class RNNForecastMetricLogger(ForecastMetricLogger):
 
     def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: ChunkForecaster):
         if not isinstance(forecaster.model, MyRNN):
-            raise ValueError(f'This Callback can only be applied to MultiTaskRNN')
+            raise ValueError(f'This Callback can only be applied to MyRNN')
         rnn: MyRNN = forecaster.model
         metrics = {}
         for dataset_name, dataset in [('train', self.train_dataset), ('val', self.val_dataset)]:

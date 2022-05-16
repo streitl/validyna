@@ -3,7 +3,6 @@ import os
 import dysts.base
 import dysts.flows
 import pytorch_lightning as pl
-from dysts.base import DynSysDelay
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from tqdm import tqdm
@@ -24,12 +23,8 @@ def run_triplet_featurization_experiment(params: dict):
     val_size = params['data']['trajectory_count'] - train_size
 
     attractors_per_dim = {}
-    for attractor_name in dysts.base.get_attractor_list():
+    for attractor_name in params['data']['attractors']:
         attractor = getattr(dysts.flows, attractor_name)()
-
-        # For speedup TODO remove
-        if hasattr(attractor, '_postprocessing') or isinstance(attractor, DynSysDelay):
-            continue
 
         space_dim = len(attractor.ic)
 

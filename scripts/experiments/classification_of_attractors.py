@@ -1,6 +1,4 @@
-from pytorch_lightning.callbacks import EarlyStopping
-
-from scripts.experiments.defaults import all_models
+from scripts.experiments.defaults import small_models
 
 from ecodyna.tasks.classification import run_classification_of_attractors_experiment
 
@@ -9,7 +7,7 @@ if __name__ == '__main__':
         'experiment': {
             'project': 'classification-of-attractors',
             'train_part': 0.75,
-            'random_seed': 26,
+            'random_seed': 50,
             'n_splits': 5
         },
         'data': {
@@ -21,7 +19,7 @@ if __name__ == '__main__':
         },
         'models': {
             'common': {'n_features': 32},
-            'list': all_models
+            'list': small_models
         },
         'dataloader': {
             'batch_size': 64,
@@ -30,8 +28,9 @@ if __name__ == '__main__':
         'trainer': {
             'max_epochs': 2,  # 50,
             'deterministic': True,
-            'val_check_interval': 1 / 16,
+            'val_check_interval': 50,
             'limit_val_batches': 1 / 16,
+            'log_every_n_steps': 50,
             'callbacks': []  # [EarlyStopping('val_loss', patience=3)]
         },
         'metric_loggers': [],

@@ -1,8 +1,9 @@
+import dysts.base
 from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import ForecastMetricLogger
 from ecodyna.tasks.forecasting import run_forecasting_experiment
-from scripts.experiments.defaults import all_models
+from scripts.experiments.defaults import medium_models
 
 if __name__ == '__main__':
     params = {
@@ -13,6 +14,7 @@ if __name__ == '__main__':
             'n_splits': 5
         },
         'data': {
+            'attractors': dysts.base.get_attractor_list(),
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -21,7 +23,7 @@ if __name__ == '__main__':
         },
         'models': {
             'common': {},
-            'list': all_models
+            'list': medium_models
         },
         'dataloader': {
             'batch_size': 64,

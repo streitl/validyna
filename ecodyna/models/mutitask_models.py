@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Literal, Optional
+from typing import Literal, Optional, Type
 
 import torch
 import torch.nn.functional as F
@@ -210,12 +210,13 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
     The name of the model for pretty-printing.
     """
 
+    @staticmethod
     @abstractmethod
-    def name(self) -> str:
+    def name() -> str:
         pass
 
 
-class MyRNN(MultiTaskTimeSeriesModel):
+class MyRNN(MultiTaskTimeSeriesModel, ABC):
     """
     Implements LSTM and GRU.
     RNNs are natural featurizers.
@@ -226,7 +227,6 @@ class MyRNN(MultiTaskTimeSeriesModel):
             self,
             n_in: int,
             space_dim: int,
-            model: Literal['GRU', 'LSTM'],
             n_layers: int,
             n_hidden: int,
             n_classes: Optional[int] = None,
@@ -240,22 +240,20 @@ class MyRNN(MultiTaskTimeSeriesModel):
     ):
         self._natural_n_features = n_hidden
 
-        assert model in ['GRU', 'LSTM'], 'Only GRU and LSTM are supported'
         assert forecast_type in ['multi', 'one_by_one'], '`forecast_type^ must be `multi` or `one_by_one`'
 
         if n_features is None:
             n_features = self._natural_n_features
 
         super().__init__(n_in=n_in, space_dim=space_dim, n_classes=n_classes, n_features=n_features, n_out=n_out)
-        self.register_hyperparams(model=model, n_layers=n_layers, forecast_type=forecast_type, **kwargs)
+        self.register_hyperparams(n_layers=n_layers, forecast_type=forecast_type, **kwargs)
 
-        self.model = model
         self.n_layers = n_layers
         self.n_hidden = n_hidden
         self.forecast_type = forecast_type
 
-        self.rnn = getattr(nn, model)(batch_first=True, input_size=space_dim, hidden_size=n_hidden,
-                                      num_layers=n_layers, **kwargs)
+        self.rnn = self.Module(batch_first=True, input_size=space_dim,
+                               hidden_size=n_hidden, num_layers=n_layers, **kwargs)
 
         self.classifier = None
         self.featurizer = None
@@ -266,6 +264,11 @@ class MyRNN(MultiTaskTimeSeriesModel):
             self.prepare_to_classify(n_classes=n_classes, classifier=classifier)
         if n_out is not None:
             self.prepare_to_forecast(n_out=n_out, forecaster=forecaster)
+
+    @property
+    @abstractmethod
+    def Module(self):
+        pass
 
     # Preparation methods
     def prepare_to_classify(self, n_classes: int, classifier: Optional[nn.Module] = None):
@@ -353,8 +356,29 @@ class MyRNN(MultiTaskTimeSeriesModel):
     def _get_featurizer_parameters(self):
         return self.rnn.parameters()
 
-    def name(self) -> str:
-        return self.model
+
+class MyGRU(MyRNN):
+
+    Module = nn.GRU
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def name() -> str:
+        return 'GRU'
+
+
+class MyLSTM(MyRNN):
+
+    Module = nn.LSTM
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def name() -> str:
+        return 'LSTM'
 
 
 class MyNBEATS(MultiTaskTimeSeriesModel):
@@ -450,7 +474,8 @@ class MyNBEATS(MultiTaskTimeSeriesModel):
                    for module in [block.FC_stack, block.FC_forward, block.FC_backward, block.g_backward]]
         return [param for module in modules for param in module.parameters()]
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return 'N-BEATS'
 
 
@@ -488,7 +513,7 @@ class MyTransformer(MultiTaskTimeSeriesModel):
         # To allow any d_model value
         self.linear = nn.Linear(space_dim, d_model)
         # We instantiate an entire transformer even though we only use the encoder part
-        self.transformer = nn.Transformer(d_model=d_model, batch_first=True, **kwargs)
+        self.transformer = nn.Transformer(d_model=d_model, batch_first=True, **kwargs, custom_decoder=0)
 
         self.classifier = None
         self.featurizer = None

@@ -2,7 +2,7 @@ import os
 
 import dysts.flows
 import pytorch_lightning as pl
-from dysts.base import get_attractor_list, DynSys
+from dysts.base import DynSys
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
@@ -21,7 +21,7 @@ def run_forecasting_experiment(params: dict):
     train_size = int(params['experiment']['train_part'] * params['data']['trajectory_count'])
     val_size = params['data']['trajectory_count'] - train_size
 
-    for attractor_name in get_attractor_list():
+    for attractor_name in params['data']['attractors']:
         attractor: DynSys = getattr(dysts.flows, attractor_name)()
 
         attractor_ic = attractor.ic.copy()
