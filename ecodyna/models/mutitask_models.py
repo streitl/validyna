@@ -564,5 +564,6 @@ class MyTransformer(MultiTaskTimeSeriesModel):
     def _get_featurizer_parameters(self):
         return self.transformer.encoder.parameters()
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return 'Transformer'

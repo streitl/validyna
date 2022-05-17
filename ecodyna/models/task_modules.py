@@ -28,14 +28,14 @@ class ChunkClassifier(pl.LightningModule):
     # TODO check the effects of setting on_step=True and on_epoch=True inside self.log
     def training_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('loss', {'train': loss})
-        self.log('acc', {'train': acc}, prog_bar=True)
+        self.log('loss.train', loss)
+        self.log('acc.train', acc, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('loss', {'val': loss})
-        self.log('acc', {'val': acc})
+        self.log('loss.val', loss)
+        self.log('acc.val', acc)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -64,12 +64,12 @@ class ChunkTripletFeaturizer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('loss.train', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('val_loss', loss, on_step=True, on_epoch=True)
+        self.log('loss.val', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -98,12 +98,12 @@ class ChunkForecaster(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('loss.train', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('val_loss', loss, on_step=True, on_epoch=True)
+        self.log('loss.val', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         # TODO test that the prediction function is correctly configured

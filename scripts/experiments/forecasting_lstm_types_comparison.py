@@ -8,13 +8,13 @@ from ecodyna.tasks.forecasting import run_forecasting_experiment
 if __name__ == '__main__':
     params = {
         'experiment': {
+            'attractors': dysts.base.get_attractor_list(),
             'project': 'lstm-forecasting-comparison',
             'train_part': 0.75,
             'random_seed': 26,
             'n_splits': 5
         },
         'data': {
-            'attractors': dysts.base.get_attractor_list(),
             'trajectory_count': 100,
             'trajectory_length': 1000,
             'resample': True,
@@ -36,7 +36,7 @@ if __name__ == '__main__':
             'max_epochs': 50,
             'deterministic': True,
             'val_check_interval': 1 / 16,
-            'callbacks': [EarlyStopping('val_loss', patience=3)]
+            'callbacks': [EarlyStopping('loss.val', patience=3, check_on_train_epoch_end=True)]
         },
         'metric_loggers': [RNNForecastMetricLogger],
         'in_out': {

@@ -1,10 +1,14 @@
-from scripts.experiments.defaults import small_models
+import dysts.base
+from pytorch_lightning.callbacks import EarlyStopping
+
+from scripts.experiments.defaults import medium_models
 
 from ecodyna.tasks.classification import run_classification_of_attractors_experiment
 
 if __name__ == '__main__':
     params = {
         'experiment': {
+            'attractors': dysts.base.get_attractor_list(),
             'project': 'classification-of-attractors',
             'train_part': 0.75,
             'random_seed': 50,
@@ -19,19 +23,20 @@ if __name__ == '__main__':
         },
         'models': {
             'common': {'n_features': 32},
-            'list': small_models
+            'list': medium_models
         },
         'dataloader': {
             'batch_size': 64,
-            'num_workers': 8
+            'num_workers': 8,
+            'persistent_workers': True
         },
         'trainer': {
-            'max_epochs': 2,  # 50,
+            'max_epochs': 50,
             'deterministic': True,
-            'val_check_interval': 50,
-            'limit_val_batches': 1 / 16,
-            'log_every_n_steps': 50,
-            'callbacks': []  # [EarlyStopping('val_loss', patience=3)]
+            'val_check_interval': 5,
+            'limit_val_batches': 1 / 50,
+            'log_every_n_steps': 5,
+            'callbacks': [EarlyStopping('loss.val', patience=3, check_on_train_epoch_end=True)]
         },
         'metric_loggers': [],
         'in_out': {

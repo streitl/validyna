@@ -23,7 +23,7 @@ def run_triplet_featurization_experiment(params: dict):
     val_size = params['data']['trajectory_count'] - train_size
 
     attractors_per_dim = {}
-    for attractor_name in params['data']['attractors']:
+    for attractor_name in params['experiment']['attractors']:
         attractor = getattr(dysts.flows, attractor_name)()
 
         space_dim = len(attractor.ic)

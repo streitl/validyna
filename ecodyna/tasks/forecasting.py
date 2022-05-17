@@ -21,7 +21,7 @@ def run_forecasting_experiment(params: dict):
     train_size = int(params['experiment']['train_part'] * params['data']['trajectory_count'])
     val_size = params['data']['trajectory_count'] - train_size
 
-    for attractor_name in params['data']['attractors']:
+    for attractor_name in params['experiment']['attractors']:
         attractor: DynSys = getattr(dysts.flows, attractor_name)()
 
         attractor_ic = attractor.ic.copy()

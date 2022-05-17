@@ -24,7 +24,7 @@ def run_classification_of_attractors_experiment(params: dict):
     val_size = params['data']['trajectory_count'] - train_size
 
     attractors_per_dim = {}
-    for attractor_name in params['data']['attractors']:
+    for attractor_name in dysts.base.get_attractor_list():
         attractor = getattr(dysts.flows, attractor_name)()
 
         space_dim = len(attractor.ic)
@@ -33,11 +33,7 @@ def run_classification_of_attractors_experiment(params: dict):
             attractors_per_dim[space_dim] = []
         attractors_per_dim[space_dim].append(attractor)
 
-    print({k: len(v) for k, v in attractors_per_dim.items()})
     for space_dim, attractors in list(attractors_per_dim.items()):
-        # TODO remove
-        if space_dim != 10:
-            continue
         datasets = {}
         print(f'Generating trajectories for attractors of dimension {space_dim}')
         for attractor in tqdm(attractors):
