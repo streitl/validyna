@@ -1,14 +1,14 @@
+import os
 import random
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 import tqdm
 from dysts.flows import DynSys
 from numpy.random import rand
 from torch import Tensor
-from torch.utils.data import TensorDataset, Dataset
+from torch.utils.data import TensorDataset, Dataset, random_split, ConcatDataset
 
 from config import ROOT_DIR
 
@@ -21,7 +21,8 @@ def generate_trajectories(
         verbose: bool = False,
         resample: bool = True,
         pts_per_period: int = 100,
-        ic_noise: Optional[float] = None
+        ic_noise: Optional[float] = None,
+        **kwargs
 ) -> Tensor:
     if ic_fun is None and trajectory_count > 1:
         if ic_noise is None:
@@ -41,28 +42,18 @@ def generate_trajectories(
     return trajectories
 
 
-def load_trajectories(path: str) -> Tensor:
+def load_from_path(path: str) -> Tensor:
     return torch.load(path)
 
 
+def load_from_params(**dp) -> Tensor:
+    path = build_data_path(**dp)
+    return load_from_path(path)
+
+
 def save_trajectories(trajectories: Tensor, path: str):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(trajectories, path)
-
-
-def load_or_generate_and_save(
-        attractor: DynSys,
-        path: Optional[str] = None,
-        **kwargs
-) -> Tensor:
-    if path is None:
-        path = build_data_path(attractor=attractor.name, **kwargs)
-    try:
-        trajectories = load_trajectories(path)
-    except OSError:
-        trajectories = generate_trajectories(attractor, **kwargs)
-        save_trajectories(trajectories, path)
-
-    return trajectories
 
 
 # Used for featurization and classification
@@ -82,13 +73,43 @@ def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Datase
         for (tensor,) in dataset
         for i in range(tensor.size(0) - n_in - n_out + 1)
     ])
-    x = slices[:, :n_in, :]
+    X = slices[:, :n_in, :]
     y = slices[:, n_in:, :]
-    return TensorDataset(x, y)
+    return TensorDataset(X, y)
 
 
 def build_data_path(**dp) -> str:
-    return f"{ROOT_DIR}/data/{'-'.join([f'{k}={v}' for k, v in sorted(dp.items(), key=lambda x: x[0])])}.pt"
+    return f"{ROOT_DIR}" \
+           f"/data" \
+           f"/{'-'.join([f'{k}={v}' for k, v in sorted(dp.items(), key=lambda x: x[0]) if k != 'attractor'])}" \
+           f"/attractor={dp['attractor']}.pt"
+
+
+class ChunkClassDataset:
+
+    def __init__(self, datasets: dict[str, Dataset], train_size: int, val_size: int, n_in: int):
+        self.datasets = datasets
+        self.classes = {name: class_n for class_n, name in enumerate(self.datasets.keys())}
+        self.n_classes = len(self.classes)
+        self.train_size = train_size
+        self.val_size = val_size
+        self.n_in = n_in
+
+    def random_split(self) -> Tuple[Dataset, Dataset]:
+        train_datasets = []
+        val_datasets = []
+        for class_n, dataset in enumerate(self.datasets.values()):
+            train_trajectories, val_trajectories = random_split(dataset, [self.train_size, self.val_size])
+            X_train = build_slices(train_trajectories, n_in=self.n_in)
+            X_val = build_slices(val_trajectories, n_in=self.n_in)
+
+            y_train = torch.full(size=(len(X_train),), fill_value=class_n)
+            y_val = torch.full(size=(len(X_val),), fill_value=class_n)
+
+            train_datasets.append(TensorDataset(X_train, y_train))
+            val_datasets.append(TensorDataset(X_val, y_val))
+
+        return ConcatDataset(train_datasets), ConcatDataset(val_datasets)
 
 
 class TripletDataset(Dataset):

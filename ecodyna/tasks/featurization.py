@@ -1,4 +1,4 @@
-import os
+from itertools import groupby
 
 import dysts.base
 import dysts.flows
@@ -8,39 +8,23 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 from tqdm import tqdm
 
 from config import ROOT_DIR
-from ecodyna.data import TripletDataset, build_slices, load_or_generate_and_save
+from ecodyna.data import TripletDataset, build_slices, load_from_params
 from ecodyna.models.task_modules import ChunkTripletFeaturizer
+from ecodyna.tasks.common import experiment_setup
 
 
 def run_triplet_featurization_experiment(params: dict):
-    # Sets random seed for random, numpy and torch
-    pl.seed_everything(params['experiment']['random_seed'], workers=True)
+    train_size, val_size = experiment_setup(params)
 
-    if not os.path.isdir(f'{ROOT_DIR}/results'):
-        os.mkdir(f'{ROOT_DIR}/results')
+    attractors = [getattr(dysts.flows, attractor_name)() for attractor_name in params['experiment']['attractors']]
+    attractors_per_dim = groupby(attractors, key=lambda x: len(x.ic))
 
-    train_size = int(params['experiment']['train_part'] * params['data']['trajectory_count'])
-    val_size = params['data']['trajectory_count'] - train_size
-
-    attractors_per_dim = {}
-    for attractor_name in params['experiment']['attractors']:
-        attractor = getattr(dysts.flows, attractor_name)()
-
-        space_dim = len(attractor.ic)
-
-        if space_dim not in attractors_per_dim:
-            attractors_per_dim[space_dim] = []
-        attractors_per_dim[space_dim].append(attractor)
-
-    for space_dim, attractors in attractors_per_dim.items():
-        datasets = {}
+    for space_dim, attractors in attractors_per_dim:
         print(f'Generating trajectories for attractors of dimension {space_dim}')
-        for attractor in tqdm(attractors):
-            attractor_x0 = attractor.ic.copy()
-            data = load_or_generate_and_save(attractor, **params['data'])
-            datasets[attractor.name] = TensorDataset(data)
+        datasets = {attractor.name: TensorDataset(load_from_params(attractor=attractor.name, **params['data']))
+                    for attractor in tqdm(list(attractors))}
 
-        for split in range(params['experiment']['n_splits']):
+        for split_n in range(params['experiment']['n_splits']):
             datasets = {
                 attractor_name: dict(zip(['train', 'val'], random_split(dataset, [train_size, val_size])))
                 for attractor_name, dataset in datasets.items()
@@ -68,11 +52,11 @@ def run_triplet_featurization_experiment(params: dict):
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
                     project=params['experiment']['project'],
-                    name=f'{model.name()}_dim_{space_dim}_split_{split + 1}'
+                    name=f'{model.name()}_dim_{space_dim}_split_{split_n}'
                 )
 
                 wandb_logger.experiment.config.update({
-                    'split_n': split + 1,
+                    'split_n': split_n,
                     'featurizer': {'name': model.name(), **model.hyperparams},
                     'data': params['data'],
                     'dataloader': params['dataloader'],

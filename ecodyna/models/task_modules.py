@@ -2,16 +2,19 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from ecodyna.models.mutitask_models import MultiTaskTimeSeriesModel
 
 
 class ChunkClassifier(pl.LightningModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, patience: int = 1, factor: float = 0.2,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
-        self.lr = lr
+        self.optimizer_params = {'lr': lr}
+        self.lr_scheduler_params = {'patience': patience, 'factor': factor}
         self.save_hyperparameters(ignore=['model'])
 
     def forward(self, x):
@@ -25,7 +28,6 @@ class ChunkClassifier(pl.LightningModule):
         acc = (y == preds).float().mean()
         return loss, acc
 
-    # TODO check the effects of setting on_step=True and on_epoch=True inside self.log
     def training_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
         self.log('loss.train', loss)
@@ -43,7 +45,12 @@ class ChunkClassifier(pl.LightningModule):
         return preds
 
     def configure_optimizers(self):
-        return AdamW(self.parameters(), lr=self.lr)
+        optimizers = [AdamW(self.parameters(), **self.optimizer_params)]
+        schedulers = [{
+            'scheduler': ReduceLROnPlateau(optimizers[0], **self.lr_scheduler_params, verbose=True),
+            'monitor': 'loss.val'
+        }]
+        return optimizers, schedulers
 
 
 class ChunkTripletFeaturizer(pl.LightningModule):
