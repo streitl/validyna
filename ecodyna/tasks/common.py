@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 from config import ROOT_DIR
 
 
-def experiment_setup(params: dict) -> Tuple[int, int]:
+def experiment_setup(**params) -> Tuple[int, int]:
     # Sets random seed for random, numpy and torch
     pl.seed_everything(params['experiment']['random_seed'], workers=True)
 

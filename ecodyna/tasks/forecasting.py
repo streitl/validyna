@@ -11,7 +11,7 @@ from ecodyna.tasks.common import experiment_setup
 
 
 def run_forecasting_experiment(params: dict):
-    train_size, val_size = experiment_setup(params)
+    train_size, val_size = experiment_setup(**params)
 
     for attractor_name in params['experiment']['attractors']:
         attractor: DynSys = getattr(dysts.flows, attractor_name)()

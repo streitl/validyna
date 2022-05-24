@@ -14,13 +14,13 @@ from ecodyna.tasks.common import experiment_setup
 
 
 def run_triplet_featurization_experiment(params: dict):
-    train_size, val_size = experiment_setup(params)
+    train_size, val_size = experiment_setup(**params)
 
     attractors = [getattr(dysts.flows, attractor_name)() for attractor_name in params['experiment']['attractors']]
     attractors_per_dim = groupby(attractors, key=lambda x: len(x.ic))
 
     for space_dim, attractors in attractors_per_dim:
-        print(f'Generating trajectories for attractors of dimension {space_dim}')
+        print(f'Loading trajectories for attractors of dimension {space_dim}')
         datasets = {attractor.name: TensorDataset(load_from_params(attractor=attractor.name, **params['data']))
                     for attractor in tqdm(list(attractors))}
 
@@ -43,7 +43,7 @@ def run_triplet_featurization_experiment(params: dict):
             triplet_train_dataset = TripletDataset(chunk_train_datasets)
             triplet_val_dataset = TripletDataset(chunk_val_datasets)
 
-            triplet_train_dl = DataLoader(triplet_train_dataset, **params['dataloader'])
+            triplet_train_dl = DataLoader(triplet_train_dataset, **params['dataloader'], shuffle=True)
             triplet_val_dl = DataLoader(triplet_val_dataset, **params['dataloader'])
 
             for Model, model_params in params['models']['all']:

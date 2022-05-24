@@ -34,8 +34,7 @@ if __name__ == '__main__':
         'trainer': {
             'max_epochs': 50,
             'deterministic': True,
-            'val_check_interval': 1 / 16,
-            'callbacks': [EarlyStopping('loss.val', patience=3, check_on_train_epoch_end=True)]
+            'val_check_interval': 1 / 16
         },
         'in_out': {
             'n_in': 5

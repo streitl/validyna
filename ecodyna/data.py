@@ -42,6 +42,13 @@ def generate_trajectories(
     return trajectories
 
 
+def build_data_path(**dp) -> str:
+    return f"{ROOT_DIR}" \
+           f"/data" \
+           f"/{'-'.join([f'{k}={v}' for k, v in sorted(dp.items(), key=lambda x: x[0]) if k != 'attractor'])}" \
+           f"/attractor={dp['attractor']}.pt"
+
+
 def load_from_path(path: str) -> Tensor:
     return torch.load(path)
 
@@ -76,13 +83,6 @@ def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Datase
     X = slices[:, :n_in, :]
     y = slices[:, n_in:, :]
     return TensorDataset(X, y)
-
-
-def build_data_path(**dp) -> str:
-    return f"{ROOT_DIR}" \
-           f"/data" \
-           f"/{'-'.join([f'{k}={v}' for k, v in sorted(dp.items(), key=lambda x: x[0]) if k != 'attractor'])}" \
-           f"/attractor={dp['attractor']}.pt"
 
 
 class ChunkClassDataset:

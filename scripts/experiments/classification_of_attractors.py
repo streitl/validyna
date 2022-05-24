@@ -1,9 +1,7 @@
 import dysts.base
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-
-from scripts.experiments.defaults import small_models
 
 from ecodyna.tasks.classification import run_classification_of_attractors_experiment
+from scripts.experiments.defaults import small_models
 
 if __name__ == '__main__':
     params = {
@@ -36,9 +34,7 @@ if __name__ == '__main__':
             'val_check_interval': 1 / 100,
             'limit_val_batches': 1 / 100,
             'log_every_n_steps': 50,
-            'track_grad_norm': 2,
-            'callbacks': [EarlyStopping('loss.val', patience=5, check_on_train_epoch_end=True),
-                          ModelCheckpoint(save_top_k=-1, every_n_epochs=1)]
+            'track_grad_norm': 2
         },
         'metric_loggers': [],
         'in_out': {
@@ -46,5 +42,6 @@ if __name__ == '__main__':
         }
     }
     params['models']['common'].update(params['in_out'])
+    params['data']['seed'] = params['experiment']['random_seed']
 
     run_classification_of_attractors_experiment(params)
