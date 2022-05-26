@@ -8,7 +8,7 @@ params = {
             'large': 12
         },
         'n_blocks': {
-            'small': 2,
+            'small': 4,
             'medium': 4,
             'large': 8
         },
@@ -18,7 +18,7 @@ params = {
             'large': 8
         },
         'n_layers': {
-            'small': 2,
+            'small': 4,
             'medium': 4,
             'large': 8
         },

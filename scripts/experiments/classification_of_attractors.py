@@ -7,7 +7,7 @@ if __name__ == '__main__':
     params = {
         'experiment': {
             'attractors': dysts.base.get_attractor_list(),
-            'project': 'classification-of-attractors',
+            'project': 'classification-of-attractors-test',
             'train_part': 0.75,
             'random_seed': 42,
             'n_splits': 5

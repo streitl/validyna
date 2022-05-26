@@ -6,7 +6,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import TensorDataset, random_split, DataLoader
 
 from ecodyna.models.mutitask_models import MultiTaskTimeSeriesModel
-from models.task_modules import ChunkClassifier
+from ecodyna.models.task_modules import ChunkClassifier
 from scripts.experiments.defaults import small_models
 
 common_parameters = dict(n_in=5, space_dim=8)
@@ -22,7 +22,7 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
             self.assertTrue(model.is_prepared_to_featurize())
             self.assertFalse(model.is_prepared_to_classify())
             self.assertFalse(model.is_prepared_to_forecast())
-            self.assertEqual(model.n_features, model._natural_n_features)
+            self.assertEqual(model.n_features, model._get_natural_n_features())
 
     def test_can_build_classifier(self):
         for Model, params in small_models:
@@ -113,7 +113,7 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
         for Model, params in small_models:
             trainer = Trainer(max_epochs=200, logger=False, enable_checkpointing=False, enable_progress_bar=False,
                               callbacks=[EarlyStopping(monitor='acc.val', patience=10)])
-            classifier = ChunkClassifier(model=Model(n_classes=2, **params, **common_parameters))
+            classifier = ChunkClassifier(model=Model(n_classes=2, n_features=10, **params, **common_parameters))
             trainer.fit(classifier, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
             print(trainer.callback_metrics)
             self.assertLess(0.99, trainer.callback_metrics['acc.val'].item())
@@ -132,7 +132,7 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
         for Model, params in small_models:
             trainer = Trainer(max_epochs=200, logger=False, enable_checkpointing=False, enable_progress_bar=False,
                               callbacks=[EarlyStopping(monitor='acc.val', patience=10)])
-            classifier = ChunkClassifier(model=Model(n_classes=3, **params, **common_parameters))
+            classifier = ChunkClassifier(model=Model(n_classes=3, n_features=10, **params, **common_parameters))
             trainer.fit(classifier, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
             print(trainer.callback_metrics)
             self.assertLess(trainer.callback_metrics['acc.val'].item(), 0.5)
