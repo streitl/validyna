@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union, Literal
 
 import numpy as np
 import torch
@@ -64,25 +64,72 @@ def save_trajectories(trajectories: Tensor, path: str):
 
 
 # Used for featurization and classification
-def build_slices(dataset: Dataset, n_in: int) -> Tensor:
+def build_slices(data: Union[Tensor, TensorDataset], n: int) -> Tensor:
+    if isinstance(data, TensorDataset):
+        data = data.tensors[0]
     slices = torch.stack([
-        tensor[i:i + n_in, :]
-        for (tensor,) in dataset
-        for i in range(tensor.size(0) - n_in)
+        tensor[i:i + n, :]
+        for tensor in data
+        for i in range(tensor.size(0) - n)
     ])
     return slices
 
 
 # Used for forecasting
-def build_in_out_pair_dataset(dataset: Dataset, n_in: int, n_out: int) -> Dataset:
-    slices = torch.stack([
-        tensor[i:i + n_in + n_out, :]
-        for (tensor,) in dataset
-        for i in range(tensor.size(0) - n_in - n_out + 1)
-    ])
+def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> Dataset:
+    slices = build_slices(dataset, n=n_in + n_out)
     X = slices[:, :n_in, :]
     y = slices[:, n_in:, :]
     return TensorDataset(X, y)
+
+
+class ChunkMultiTaskDataset(Dataset):
+
+    def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
+        self.classes = {name: class_n for class_n, name in enumerate(trajectories_per_sys.keys())}
+        self.n_classes = len(self.classes)
+        self.n_in = n_in
+        self.n_out = n_out
+
+        datasets = []
+        for class_n, trajectories in enumerate(trajectories_per_sys.values()):
+            slices = build_slices(trajectories, n=n_in + n_out)
+            X_in = slices[:, :n_in, :]
+            X_out = slices[:, n_in:, :]
+            X_class = torch.full(size=(X_in.size(0),), fill_value=class_n)
+            datasets.append(TensorDataset(X_in, X_out, X_class))
+
+        self.dataset = ConcatDataset(datasets)
+
+    def __getitem__(self, index):
+        return self.dataset[index]
+
+    def set_task(self, task: Literal['classification', 'featurization', 'forecasting', 'all']):
+        if task == 'classification':
+            self.__getitem__ = self.getitem_classification
+        elif task == 'featurization':
+            self.__getitem__ = self.getitem_featurization
+        elif task == 'forecasting':
+            self.__getitem__ = self.getitem_forecasting
+        elif task == 'all':
+            self.__getitem__ = self.getitem_all
+        else:
+            raise ValueError(f'Unknown task {task}')
+
+    def getitem_all(self, index):
+        return self.dataset[index]
+
+    def getitem_classification(self, index):
+        x_in, _, x_class = self.dataset[index]
+        return x_in, x_class
+
+    def getitem_featurization(self, index):
+        x_in, _, _ = self.dataset[index]
+        return x_in
+
+    def getitem_forecasting(self, index):
+        x_in, x_out, _ = self.dataset[index]
+        return x_in, x_out
 
 
 class ChunkClassDataset:
@@ -100,8 +147,8 @@ class ChunkClassDataset:
         val_datasets = []
         for class_n, dataset in enumerate(self.datasets.values()):
             train_trajectories, val_trajectories = random_split(dataset, [self.train_size, self.val_size])
-            X_train = build_slices(train_trajectories, n_in=self.n_in)
-            X_val = build_slices(val_trajectories, n_in=self.n_in)
+            X_train = build_slices(train_trajectories, n=self.n_in)
+            X_val = build_slices(val_trajectories, n=self.n_in)
 
             y_train = torch.full(size=(len(X_train),), fill_value=class_n)
             y_val = torch.full(size=(len(X_val),), fill_value=class_n)
