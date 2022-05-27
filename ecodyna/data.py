@@ -116,6 +116,9 @@ class ChunkMultiTaskDataset(Dataset):
         else:
             raise ValueError(f'Unknown task {task}')
 
+    def __len__(self):
+        return len(self.dataset)
+
     def getitem_all(self, index):
         return self.dataset[index]
 
