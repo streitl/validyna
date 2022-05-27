@@ -97,7 +97,7 @@ class ChunkMultiTaskDataset:
         for class_n, trajectories in enumerate(trajectories_per_sys.values()):
             slices = build_slices(trajectories, n=n_in + n_out)
             X_in.append(slices[:, :n_in, :])
-            X_out.append(slices[:, n_in:, :])
+            X_out.append(slices[:, -n_out:, :])
             X_class.append(torch.full(size=(X_in[-1].size(0),), fill_value=class_n))
 
         self.X_in = torch.concat(X_in, dim=0)
