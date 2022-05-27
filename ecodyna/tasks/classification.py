@@ -36,15 +36,17 @@ def run_classification_of_attractors_experiment(params: dict):
         for Model, model_params in params['models']['list']:
             model = Model(space_dim=space_dim, n_classes=dataset.n_classes,
                           **model_params, **params['models']['common'])
+            
             classifier = ChunkClassifier(model=model)
 
             run_id = f'{model.name()}_dim_{space_dim}'
             wandb_logger = WandbLogger(
                 save_dir=f'{ROOT_DIR}/results',
                 project=params['experiment']['project'],
-                name=run_id, id=run_id,
+                name=run_id,
+                id=run_id,
                 config={
-                    'model': model.model.hyperparams,
+                    'ml': model.hyperparams,
                     'data': params['data'],
                     'dataloader': params['dataloader'],
                     'experiment': params['experiment'],
