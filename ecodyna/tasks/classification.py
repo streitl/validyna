@@ -42,16 +42,15 @@ def run_classification_of_attractors_experiment(params: dict):
             wandb_logger = WandbLogger(
                 save_dir=f'{ROOT_DIR}/results',
                 project=params['experiment']['project'],
-                name=run_id, id=run_id
+                name=run_id, id=run_id,
+                config={
+                    'model': model.model.hyperparams,
+                    'data': params['data'],
+                    'dataloader': params['dataloader'],
+                    'experiment': params['experiment'],
+                    'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
+                }
             )
-
-            wandb_logger.experiment.config.update({
-                'ml': model.hyperparams,
-                'data': params['data'],
-                'dataloader': params['dataloader'],
-                'experiment': params['experiment'],
-                'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
-            })
 
             trainer = pl.Trainer(
                 logger=wandb_logger, **params['trainer'],
