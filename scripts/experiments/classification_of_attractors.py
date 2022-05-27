@@ -24,7 +24,7 @@ if __name__ == '__main__':
         },
         'dataloader': {
             'batch_size': 64,
-            'num_workers': 8,
+            'num_workers': 4,
             'persistent_workers': True
         },
         'trainer': {

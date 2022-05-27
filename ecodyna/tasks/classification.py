@@ -44,7 +44,6 @@ def run_classification_of_attractors_experiment(params: dict):
                 project=params['experiment']['project'],
                 name=run_id, id=run_id
             )
-            wandb_logger.watch(classifier)
 
             wandb_logger.experiment.config.update({
                 'classifier': classifier.model.hyperparams,
