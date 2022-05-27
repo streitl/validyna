@@ -121,3 +121,5 @@ if __name__ == '__main__':
         }
     }
     params['models']['common'].update(params['in_out'])
+
+    classification_into_forecasting(params)
