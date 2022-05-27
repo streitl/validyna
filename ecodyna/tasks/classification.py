@@ -3,7 +3,7 @@ from itertools import groupby
 import dysts.base
 import dysts.flows
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
@@ -22,42 +22,43 @@ def run_classification_of_attractors_experiment(params: dict):
     attractors_per_dim = groupby(used_attractors, key=lambda x: len(x.ic))
 
     for space_dim, attractors in attractors_per_dim:
+        if space_dim != 3:
+            continue
         print(f'Loading trajectories for attractors of dimension {space_dim}')
         datasets = {attractor.name: TensorDataset(load_from_params(attractor=attractor.name, **params['data']))
                     for attractor in tqdm(list(attractors))}
 
         dataset = ChunkClassDataset(datasets, train_size, val_size, **params['in_out'])
+        train_ds, val_ds = dataset.random_split()
+        train_dl = DataLoader(train_ds, **params['dataloader'], shuffle=True)
+        val_dl = DataLoader(val_ds, **params['dataloader'], shuffle=True)
 
-        for split_n in range(params['experiment']['n_splits']):
+        for Model, model_params in params['models']['list']:
+            model = Model(space_dim=space_dim, n_classes=dataset.n_classes,
+                          **model_params, **params['models']['common'])
+            classifier = ChunkClassifier(model=model)
 
-            train_ds, val_ds = dataset.random_split()
-            train_dl = DataLoader(train_ds, **params['dataloader'], shuffle=True)
-            val_dl = DataLoader(val_ds, **params['dataloader'], shuffle=True)
+            run_id = f'{model.name()}_dim_{space_dim}'
+            wandb_logger = WandbLogger(
+                save_dir=f'{ROOT_DIR}/results',
+                project=params['experiment']['project'],
+                name=run_id, id=run_id
+            )
+            wandb_logger.watch(classifier)
 
-            for Model, model_params in params['models']['list']:
-                model = Model(space_dim=space_dim, n_classes=dataset.n_classes,
-                              **model_params, **params['models']['common'])
-                classifier = ChunkClassifier(model=model)
+            wandb_logger.experiment.config.update({
+                'classifier': classifier.model.hyperparams,
+                'data': params['data'],
+                'dataloader': params['dataloader'],
+                'experiment': params['experiment'],
+                'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
+            })
 
-                wandb_logger = WandbLogger(
-                    save_dir=f'{ROOT_DIR}/results',
-                    project=params['experiment']['project'],
-                    name=f'{model.name()}_dim_{space_dim}_split_{split_n}'
-                )
+            trainer = pl.Trainer(
+                logger=wandb_logger, **params['trainer'],
+                callbacks=[EarlyStopping('loss.val', patience=5, check_on_train_epoch_end=True),
+                           LearningRateMonitor()]
+            )
+            trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
-                wandb_logger.experiment.config.update({
-                    'split_n': split_n,
-                    'classifier': {'name': model.name(), **model.hyperparams},
-                    'data': params['data'],
-                    'dataloader': params['dataloader'],
-                    'experiment': params['experiment'],
-                    'trainer': {k: f'{v}' for k, v in params['trainer'].items()}
-                })
-
-                model_trainer = pl.Trainer(
-                    logger=wandb_logger, **params['trainer'],
-                    callbacks=[EarlyStopping('loss.val', patience=5, check_on_train_epoch_end=True)]
-                )
-                model_trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
-
-                wandb_logger.experiment.finish(quiet=True)
+            wandb_logger.experiment.finish(quiet=True)

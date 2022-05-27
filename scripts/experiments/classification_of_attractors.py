@@ -9,8 +9,7 @@ if __name__ == '__main__':
             'attractors': dysts.base.get_attractor_list(),
             'project': 'classification-of-attractors-test',
             'train_part': 0.75,
-            'random_seed': 42,
-            'n_splits': 5
+            'random_seed': 42
         },
         'data': {
             'trajectory_count': 100,
@@ -34,7 +33,8 @@ if __name__ == '__main__':
             'val_check_interval': 1 / 100,
             'limit_val_batches': 1 / 100,
             'log_every_n_steps': 50,
-            'track_grad_norm': 2
+            'track_grad_norm': 2,
+            'gpus': 1
         },
         'metric_loggers': [],
         'in_out': {

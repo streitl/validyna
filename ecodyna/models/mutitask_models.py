@@ -71,7 +71,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         self.forecaster = None
 
         self.hyperparams = {}
-        self.register_hyperparams(n_in=n_in, space_dim=space_dim,
+        self.register_hyperparams(n_in=n_in, space_dim=space_dim, name=self.name(),
                                   n_classes=n_classes, n_features=n_features, n_out=n_out)
 
     def register_hyperparams(self, **kwargs):
@@ -161,7 +161,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
             assert forecast.size(2) == self.space_dim
             return forecast
         else:
-            raise ValueError(f'{self.name()} was not prepared to {kind}')
+            raise ValueError(f'{self.name()} is not prepared to {kind}')
 
     """
     The public methods to be used for prediction in the corresponding tasks.
@@ -170,14 +170,14 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
 
     def classify(self, x: Tensor) -> Tensor:
         if not self.is_prepared_to_classify():
-            raise ValueError(f'{self.name()} was not prepared to classify')
+            raise ValueError(f'{self.name()} is not prepared to classify')
         y = self._forward_classify(x)
         y = F.log_softmax(y)
         return torch.argmax(y, dim=1)
 
     def featurize(self, x: Tensor) -> Tensor:
         if not self.is_prepared_to_featurize():
-            raise ValueError(f'{self.name()} was not prepared to featurize')
+            raise ValueError(f'{self.name()} is not prepared to featurize')
         return self._forward_featurize(x)
 
     def forecast_in_chunks(self, x: Tensor, n: int) -> Tensor:
@@ -186,7 +186,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         To forecast n future time steps where n != n_out,
         """
         if not self.is_prepared_to_forecast():
-            raise ValueError(f'{self.name()} was not prepared to forecast')
+            raise ValueError(f'{self.name()} is not prepared to forecast')
         B, T, D = x.size()
         assert T == self.n_in, f'{self.name()} should take {self.n_in} time steps as input'
         ts = torch.empty((B, T + n, D), dtype=x.dtype)
@@ -368,13 +368,13 @@ class MyRNN(MultiTaskTimeSeriesModel, ABC):
 
 class MyGRU(MyRNN):
     @staticmethod
-    def RNN() -> Type[nn.Module]:
+    def RNN():
         return nn.GRU
 
 
 class MyLSTM(MyRNN):
     @staticmethod
-    def RNN() -> Type[nn.Module]:
+    def RNN():
         return nn.LSTM
 
 
