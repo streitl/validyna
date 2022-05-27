@@ -81,7 +81,7 @@ class NBEATS(nn.Module):
         def forward(self, x: Tensor):
             B, T = x.size()
             assert T == self.n_in, f'NBeats Stack should take {self.n_in} time steps as input'
-            forecast = torch.zeros(B, self.n_out).type_as(x.type)
+            forecast = torch.zeros(B, self.n_out).type_as(x)
             for block in self.blocks:
                 block_backcast, block_forecast = block(x)
                 x = x - block_backcast
