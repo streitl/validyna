@@ -83,7 +83,7 @@ def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> 
     return TensorDataset(X, y)
 
 
-class ChunkMultiTaskDataset(Dataset):
+class ChunkMultiTaskDataset:
 
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
         self.classes = {name: class_n for class_n, name in enumerate(trajectories_per_sys.keys())}
@@ -91,48 +91,30 @@ class ChunkMultiTaskDataset(Dataset):
         self.n_in = n_in
         self.n_out = n_out
 
-        datasets = []
+        X_in = []
+        X_out = []
+        X_class = []
         for class_n, trajectories in enumerate(trajectories_per_sys.values()):
             slices = build_slices(trajectories, n=n_in + n_out)
-            X_in = slices[:, :n_in, :]
-            X_out = slices[:, n_in:, :]
-            X_class = torch.full(size=(X_in.size(0),), fill_value=class_n)
-            datasets.append(TensorDataset(X_in, X_out, X_class))
+            X_in.append(slices[:, :n_in, :])
+            X_out.append(slices[:, n_in:, :])
+            X_class.append(torch.full(size=(X_in[-1].size(0),), fill_value=class_n))
 
-        self.dataset = ConcatDataset(datasets)
+        self.X_in = torch.concat(X_in, dim=0)
+        self.X_out = torch.concat(X_out, dim=0)
+        self.X_class = torch.concat(X_class, dim=0)
 
-    def __getitem__(self, index):
-        return self.dataset[index]
+    def for_classification(self):
+        return TensorDataset(self.X_in, self.X_class)
 
-    def set_task(self, task: Literal['classification', 'featurization', 'forecasting', 'all']):
-        if task == 'classification':
-            self.__getitem__ = self.getitem_classification
-        elif task == 'featurization':
-            self.__getitem__ = self.getitem_featurization
-        elif task == 'forecasting':
-            self.__getitem__ = self.getitem_forecasting
-        elif task == 'all':
-            self.__getitem__ = self.getitem_all
-        else:
-            raise ValueError(f'Unknown task {task}')
+    def for_featurization(self):
+        return TensorDataset(self.X_in)
 
-    def __len__(self):
-        return len(self.dataset)
+    def for_forecasting(self):
+        return TensorDataset(self.X_in, self.X_out)
 
-    def getitem_all(self, index):
-        return self.dataset[index]
-
-    def getitem_classification(self, index):
-        x_in, _, x_class = self.dataset[index]
-        return x_in, x_class
-
-    def getitem_featurization(self, index):
-        x_in, _, _ = self.dataset[index]
-        return x_in
-
-    def getitem_forecasting(self, index):
-        x_in, x_out, _ = self.dataset[index]
-        return x_in, x_out
+    def for_all(self):
+        return TensorDataset(self.X_in, self.X_class, self.X_out)
 
 
 class ChunkClassDataset:
