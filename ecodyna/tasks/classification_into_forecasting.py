@@ -66,6 +66,7 @@ def classification_into_forecasting(params: dict):
             run_id = f'{model.name()}_dim_{space_dim}'
 
             train_ds.set_task('classification')
+            val_ds.set_task('classification')
             classifier = ChunkClassifier(model=model)
             wandb_logger = get_logger(f'{run_id}_cls', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)
@@ -73,6 +74,7 @@ def classification_into_forecasting(params: dict):
             wandb_logger.experiment.finish(quiet=True)
 
             train_ds.set_task('forecasting')
+            val_ds.set_task('forecasting')
             model.freeze_featurizer()
             forecaster = ChunkForecaster(model=model)
             wandb_logger = get_logger(f'{run_id}_fct', model.hyperparams, **params)
@@ -109,9 +111,8 @@ if __name__ == '__main__':
         'trainer': {
             'max_epochs': 100,
             'deterministic': True,
-            'val_check_interval': 1 / 100,
-            'limit_val_batches': 1 / 100,
-            'log_every_n_steps': 50,
+            'val_check_interval': 1,
+            'log_every_n_steps': 1,
             'gpus': 1
         },
         'metric_loggers': [],
