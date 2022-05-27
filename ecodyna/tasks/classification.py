@@ -46,7 +46,7 @@ def run_classification_of_attractors_experiment(params: dict):
             )
 
             wandb_logger.experiment.config.update({
-                'classifier': classifier.model.hyperparams,
+                'ml': model.hyperparams,
                 'data': params['data'],
                 'dataloader': params['dataloader'],
                 'experiment': params['experiment'],
