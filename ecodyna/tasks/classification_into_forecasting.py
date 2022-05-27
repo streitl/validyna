@@ -57,9 +57,6 @@ def classification_into_forecasting(params: dict):
         train_ds = ChunkMultiTaskDataset(train_tensors, **params['in_out'])
         val_ds = ChunkMultiTaskDataset(val_tensors, **params['in_out'])
 
-        train_dl = DataLoader(train_ds, **params['dataloader'], shuffle=True)
-        val_dl = DataLoader(val_ds, **params['dataloader'], shuffle=True)
-
         for Model, model_params in params['models']['list']:
             model = Model(space_dim=space_dim, n_classes=len(tensors), **model_params, **params['models']['common'])
 
@@ -68,18 +65,22 @@ def classification_into_forecasting(params: dict):
             train_ds.set_task('classification')
             val_ds.set_task('classification')
             classifier = ChunkClassifier(model=model)
+            train_cls_dl = DataLoader(train_ds, **params['dataloader'], shuffle=True)
+            val_cls_dl = DataLoader(val_ds, **params['dataloader'], shuffle=True)
             wandb_logger = get_logger(f'{run_id}_cls', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)
-            trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
+            trainer.fit(classifier, train_dataloaders=train_cls_dl, val_dataloaders=val_cls_dl)
             wandb_logger.experiment.finish(quiet=True)
 
             train_ds.set_task('forecasting')
             val_ds.set_task('forecasting')
+            train_fct_dl = DataLoader(train_ds, **params['dataloader'], shuffle=True)
+            val_fct_dl = DataLoader(val_ds, **params['dataloader'], shuffle=True)
             model.freeze_featurizer()
             forecaster = ChunkForecaster(model=model)
             wandb_logger = get_logger(f'{run_id}_fct', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)
-            trainer.fit(forecaster, train_dataloaders=train_dl, val_dataloaders=val_dl)
+            trainer.fit(forecaster, train_dataloaders=train_fct_dl, val_dataloaders=val_fct_dl)
             wandb_logger.experiment.finish(quiet=True)
 
 
