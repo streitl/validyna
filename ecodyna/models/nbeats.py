@@ -81,7 +81,7 @@ class NBEATS(nn.Module):
         def forward(self, x: Tensor):
             B, T = x.size()
             assert T == self.n_in, f'NBeats Stack should take {self.n_in} time steps as input'
-            forecast = torch.zeros(B, self.n_out)
+            forecast = torch.zeros(B, self.n_out).type_as(x.type)
             for block in self.blocks:
                 block_backcast, block_forecast = block(x)
                 x = x - block_backcast
@@ -135,7 +135,7 @@ class NBEATS(nn.Module):
         B, T = x.size()
         assert T == self.n_in, f'NBeats should take {self.n_in} time steps as input'
         backcast = x
-        forecast = torch.zeros(B, self.n_out)
+        forecast = torch.zeros(B, self.n_out).type_as(x)
         for stack in self.stacks:
             backcast, stack_forecast = stack(backcast)
             forecast += stack_forecast
@@ -145,7 +145,7 @@ class NBEATS(nn.Module):
         B, T = x.size()
         assert T == self.n_in, f'NBeats should take {self.n_in} time steps as input'
         backcast = x
-        features = torch.zeros(B, self.n_stacks * self.n_blocks * self.expansion_coefficient_dim)
+        features = torch.zeros(B, self.n_stacks * self.n_blocks * self.expansion_coefficient_dim).type_as(x)
         for s, stack in enumerate(self.stacks):
             for b, block in enumerate(stack.blocks):
                 backcast_expansion, forecast_expansion = block.get_expansions(backcast)

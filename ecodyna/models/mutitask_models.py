@@ -189,7 +189,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
             raise ValueError(f'{self.name()} is not prepared to forecast')
         B, T, D = x.size()
         assert T == self.n_in, f'{self.name()} should take {self.n_in} time steps as input'
-        ts = torch.empty((B, T + n, D), dtype=x.dtype)
+        ts = torch.empty((B, T + n, D)).type_as(x)
         ts[:, :T, :] = x[:, :, :]
         for i in range(T, T + n, self.n_out):
             current_window = ts[:, i - self.n_in:i, :]
@@ -315,7 +315,7 @@ class MyRNN(MultiTaskTimeSeriesModel, ABC):
     def forecast_recurrently_one_by_one(self, x: Tensor, n: int) -> Tensor:
         assert self.forecast_type == 'one_by_one', 'This forecast function requires forecast type `one_by_one`'
         B, T, D = x.size()
-        ts = torch.empty((B, T + n, D), dtype=x.dtype)
+        ts = torch.empty((B, T + n, D)).type_as(x)
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
@@ -330,7 +330,7 @@ class MyRNN(MultiTaskTimeSeriesModel, ABC):
         """
         assert self.forecast_type == 'multi', 'This forecast function requires forecast type `multi`'
         B, T, D = x.size()
-        ts = torch.empty((B, T + n, D), dtype=x.dtype)
+        ts = torch.empty((B, T + n, D)).type_as(x)
         ts[:, :T, :] = x
         out, last_hidden_state = self.rnn(x)
         for i in range(T, T + n):
