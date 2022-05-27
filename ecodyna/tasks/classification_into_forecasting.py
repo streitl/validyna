@@ -12,7 +12,7 @@ from config import ROOT_DIR
 from ecodyna.data import load_from_params, ChunkMultiTaskDataset
 from ecodyna.models.task_modules import ChunkClassifier, ChunkForecaster
 from ecodyna.tasks.common import experiment_setup
-from experiments.defaults import small_models
+from scripts.experiments.defaults import small_models
 
 
 def get_logger(run_id: str, hyperparams: dict, **params):
