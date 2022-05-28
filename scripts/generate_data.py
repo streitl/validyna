@@ -19,6 +19,5 @@ if __name__ == '__main__':
     pl.seed_everything(params['data']['seed'])
 
     for attractor_name in dysts.base.get_attractor_list():
-        attractor = getattr(dysts.flows, attractor_name)()
-        trajectories = generate_trajectories(attractor, **params['data'], verbose=True)
+        trajectories = generate_trajectories(getattr(dysts.flows, attractor_name)(), **params['data'], verbose=True)
         save_trajectories(trajectories, path=build_data_path(attractor=attractor_name, **params['data']))

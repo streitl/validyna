@@ -1,4 +1,4 @@
-from scripts.experiments.defaults import params
+from models.defaults import params
 from itertools import product
 from tqdm import tqdm
 from ecodyna.models import mutitask_models

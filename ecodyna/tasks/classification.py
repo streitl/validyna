@@ -12,9 +12,10 @@ from config import ROOT_DIR
 from ecodyna.data import ChunkClassDataset, load_from_params
 from ecodyna.models.task_modules import ChunkClassifier
 from ecodyna.tasks.common import experiment_setup
+from ecodyna.models.defaults import small_models
 
 
-def run_classification_of_attractors_experiment(params: dict):
+def classification(params: dict):
     train_size, val_size = experiment_setup(**params)
 
     used_attractors = [getattr(dysts.flows, attractor_name)() for attractor_name in params['experiment']['attractors']]
@@ -62,3 +63,47 @@ def run_classification_of_attractors_experiment(params: dict):
             trainer.fit(classifier, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
             wandb_logger.experiment.finish(quiet=True)
+
+
+if __name__ == '__main__':
+    params = {
+        'experiment': {
+            'attractors': dysts.base.get_attractor_list(),
+            'project': 'classification',
+            'train_part': 0.9,
+            'random_seed': 42
+        },
+        'data': {
+            'trajectory_count': 100,
+            'trajectory_length': 100,
+            'resample': True,
+            'pts_per_period': 50,
+            'ic_noise': 0.01
+        },
+        'models': {
+            'common': {'n_features': 32},
+            'list': small_models
+        },
+        'dataloader': {
+            'batch_size': 4096,
+            'num_workers': 4,
+            'persistent_workers': True,
+            'pin_memory': True
+        },
+        'trainer': {
+            'max_epochs': 100,
+            'deterministic': True,
+            'val_check_interval': 1 / 100,
+            'limit_val_batches': 1 / 100,
+            'log_every_n_steps': 50,
+            'track_grad_norm': 2,
+            'gpus': 1
+        },
+        'metric_loggers': [],
+        'in_out': {
+            'n_in': 5
+        }
+    }
+    params['models']['common'].update(params['in_out'])
+
+    classification(params)

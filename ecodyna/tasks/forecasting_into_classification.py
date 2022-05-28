@@ -12,7 +12,7 @@ from config import ROOT_DIR
 from ecodyna.data import load_from_params, ChunkMultiTaskDataset
 from ecodyna.models.task_modules import ChunkClassifier, ChunkForecaster
 from ecodyna.tasks.common import experiment_setup
-from scripts.experiments.defaults import small_models
+from ecodyna.models.defaults import small_models
 
 
 def get_logger(run_id: str, hyperparams: dict, **params):
@@ -68,7 +68,7 @@ def forecasting_into_classification(**params):
             trainer.fit(
                 forecaster,
                 train_dataloaders=DataLoader(train_ds.for_forecasting(), **params['dataloader'], shuffle=True),
-                val_dataloaders=DataLoader(val_ds.for_forecasting(), **params['dataloader'])
+                val_dataloaders=DataLoader(val_ds.for_forecasting(), **params['dataloader'], shuffle=True)
             )
             wandb_logger.experiment.finish(quiet=True)
 
@@ -79,7 +79,7 @@ def forecasting_into_classification(**params):
             trainer.fit(
                 classifier,
                 train_dataloaders=DataLoader(train_ds.for_classification(), **params['dataloader'], shuffle=True),
-                val_dataloaders=DataLoader(val_ds.for_classification(), **params['dataloader'])
+                val_dataloaders=DataLoader(val_ds.for_classification(), **params['dataloader'], shuffle=True)
             )
             wandb_logger.experiment.finish(quiet=True)
 
@@ -107,16 +107,16 @@ if __name__ == '__main__':
         'dataloader': {
             'batch_size': 4096,
             'num_workers': 4,
-            'persistent_workers': True
+            'persistent_workers': True,
+            'pin_memory': True
         },
         'trainer': {
             'max_epochs': 100,
             'deterministic': True,
-            'val_check_interval': 1,
+            'val_check_interval': 2,
             'log_every_n_steps': 1,
             'gpus': 1
         },
-        'metric_loggers': [],
         'in_out': {
             'n_in': 5,
             'n_out': 5

@@ -7,7 +7,7 @@ from torch.utils.data import TensorDataset, random_split, DataLoader
 
 from ecodyna.models.mutitask_models import MultiTaskTimeSeriesModel
 from ecodyna.models.task_modules import ChunkClassifier
-from scripts.experiments.defaults import small_models
+from models.defaults import small_models
 
 common_parameters = dict(n_in=5, space_dim=8)
 

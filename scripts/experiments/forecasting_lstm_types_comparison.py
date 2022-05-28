@@ -1,9 +1,8 @@
 import dysts.base
-from pytorch_lightning.callbacks import EarlyStopping
 
 from ecodyna.metrics import RNNForecastMetricLogger
 from ecodyna.models.mutitask_models import MyLSTM
-from ecodyna.tasks.forecasting import run_forecasting_experiment
+from ecodyna.tasks.forecasting import forecasting
 
 if __name__ == '__main__':
     params = {
@@ -45,4 +44,4 @@ if __name__ == '__main__':
     }
     params['models']['common'].update(params['in_out'])
 
-    run_forecasting_experiment(params=params)
+    forecasting(params=params)
