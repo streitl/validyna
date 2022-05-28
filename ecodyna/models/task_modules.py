@@ -55,7 +55,7 @@ class ChunkClassifier(pl.LightningModule):
 
 class ChunkTripletFeaturizer(pl.LightningModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.lr = lr
@@ -88,7 +88,7 @@ class ChunkTripletFeaturizer(pl.LightningModule):
 
 class ChunkForecaster(pl.LightningModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-4, *args, **kwargs):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.lr = lr

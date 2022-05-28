@@ -16,16 +16,14 @@ def forecasting(params: dict):
     train_size, val_size = experiment_setup(**params)
 
     for attractor_name in params['experiment']['attractors']:
-        attractor: DynSys = getattr(dysts.flows, attractor_name)()
+        attractor = getattr(dysts.flows, attractor_name)()
         dataset = TensorDataset(load_from_params(attractor=attractor.name, **params['data']))
+        train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
-        for split_n in range(params['experiment']['n_splits']):
-            train_ds, val_ds = random_split(dataset, [train_size, val_size])
-
-            chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_ds, **params['in_out']),
-                                        **params['dataloader'], shuffle=True)
-            chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_ds, **params['in_out']),
-                                      **params['dataloader'])
+        chunk_train_dl = DataLoader(build_in_out_pair_dataset(train_ds, **params['in_out']),
+                                    **params['dataloader'], shuffle=True)
+        chunk_val_dl = DataLoader(build_in_out_pair_dataset(val_ds, **params['in_out']),
+                                  **params['dataloader'])
 
             # Add metric loggers to the list of trainer callbacks
             params['trainer']['callbacks'].extend([Logger(train_ds, val_ds) for Logger in params['metric_loggers']])
@@ -36,12 +34,11 @@ def forecasting(params: dict):
                 wandb_logger = WandbLogger(
                     save_dir=f'{ROOT_DIR}/results',
                     project=params['experiment']['project'],
-                    name=f'{model.name()}_{attractor_name}_{split_n}'
+                    name=f'{model.name()}_{attractor_name}'
                 )
 
                 forecaster = ChunkForecaster(model=model)
                 wandb_logger.experiment.config.update({
-                    'split_n': split_n,
                     'forecaster': {'name': model.name(), **forecaster.hparams},
                     'data': {'attractor': attractor_name, **params['data']},
                     'dataloader': params['dataloader'],

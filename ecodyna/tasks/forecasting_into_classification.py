@@ -63,7 +63,7 @@ def forecasting_into_classification(**params):
             run_id = f'{model.name()}_dim_{space_dim}'
 
             forecaster = ChunkForecaster(model=model)
-            wandb_logger = get_logger(f'{run_id}_fct', model.hyperparams, **params)
+            wandb_logger = get_logger(f'{run_id}_f', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)
             trainer.fit(
                 forecaster,
@@ -74,7 +74,7 @@ def forecasting_into_classification(**params):
 
             model.freeze_featurizer()
             classifier = ChunkClassifier(model=model)
-            wandb_logger = get_logger(f'{run_id}_cls', model.hyperparams, **params)
+            wandb_logger = get_logger(f'{run_id}_f_c', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)
             trainer.fit(
                 classifier,
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     params = {
         'experiment': {
             'attractors': dysts.base.get_attractor_list(),
-            'project': 'forecasting-into-classification',
+            'project': 'classification-forecasting',
             'train_part': 0.9,
             'random_seed': 42
         },
