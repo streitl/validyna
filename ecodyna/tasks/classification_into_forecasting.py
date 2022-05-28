@@ -38,7 +38,7 @@ def get_trainer(logger, **params):
     )
 
 
-def classification_into_forecasting(params: dict):
+def classification_into_forecasting(**params):
     train_size, val_size = experiment_setup(**params)
 
     attractors = [getattr(dysts.flows, attractor_name)() for attractor_name in params['experiment']['attractors']]
@@ -105,7 +105,7 @@ if __name__ == '__main__':
             'list': small_models
         },
         'dataloader': {
-            'batch_size': 1024,
+            'batch_size': 4096,
             'num_workers': 4,
             'persistent_workers': True
         },
@@ -124,4 +124,4 @@ if __name__ == '__main__':
     }
     params['models']['common'].update(params['in_out'])
 
-    classification_into_forecasting(params)
+    classification_into_forecasting(**params)
