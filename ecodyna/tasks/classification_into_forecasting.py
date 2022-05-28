@@ -33,7 +33,7 @@ def get_logger(run_id: str, hyperparams: dict, **params):
 def get_trainer(model, logger, **params):
     return pl.Trainer(
         logger=logger, **params['trainer'],
-        callbacks=[EarlyStopping(model.loss, patience=5, check_on_train_epoch_end=True),
+        callbacks=[EarlyStopping(f'{model.loss}.val', patience=5, check_on_train_epoch_end=True),
                    LearningRateMonitor()]
     )
 
