@@ -105,7 +105,7 @@ if __name__ == '__main__':
             'list': small_models
         },
         'dataloader': {
-            'batch_size': 4096,
+            'batch_size': 1024,
             'num_workers': 4,
             'persistent_workers': True,
             'pin_memory': True
@@ -114,6 +114,7 @@ if __name__ == '__main__':
             'max_epochs': 100,
             'deterministic': True,
             'val_check_interval': 2,
+            'limit_val_batches': 1,
             'log_every_n_steps': 1,
             'gpus': 1
         },
