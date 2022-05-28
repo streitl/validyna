@@ -16,6 +16,7 @@ class ChunkClassifier(pl.LightningModule):
         self.optimizer_params = {'lr': lr}
         self.lr_scheduler_params = {'patience': patience, 'factor': factor}
         self.save_hyperparameters(ignore=['model'])
+        self.loss = 'loss.cross'
 
     def forward(self, x):
         return self.model(x, kind='classify')
@@ -30,13 +31,13 @@ class ChunkClassifier(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('loss.train', loss)
+        self.log(f'{self.loss}.train', loss)
         self.log('acc.train', acc, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, acc = self.get_loss_acc(batch)
-        self.log('loss.val', loss)
+        self.log(f'{self.loss}.val', loss)
         self.log('acc.val', acc)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -60,6 +61,7 @@ class ChunkTripletFeaturizer(pl.LightningModule):
         self.model = model
         self.lr = lr
         self.save_hyperparameters(ignore=['model'])
+        self.loss = 'loss.triplet'
 
     def forward(self, x):
         return self.model(x, kind='featurize')
@@ -71,12 +73,12 @@ class ChunkTripletFeaturizer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('loss.train', loss)
+        self.log(f'{self.loss}.train', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('loss.val', loss)
+        self.log(f'{self.loss}.val', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -94,6 +96,7 @@ class ChunkForecaster(pl.LightningModule):
         self.lr = lr
         self.save_hyperparameters(ignore=['model'])
         self.prediction_func = self.model.forecast_in_chunks
+        self.loss = 'loss.mse'
 
     def forward(self, x):
         return self.model(x, kind='forecast')
@@ -105,12 +108,12 @@ class ChunkForecaster(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('loss.train', loss)
+        self.log(f'{self.loss}.train', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch)
-        self.log('loss.val', loss)
+        self.log(f'{self.loss}.val', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         # TODO test that the prediction function is correctly configured

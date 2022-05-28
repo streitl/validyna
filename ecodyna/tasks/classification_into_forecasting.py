@@ -30,10 +30,10 @@ def get_logger(run_id: str, hyperparams: dict, **params):
     )
 
 
-def get_trainer(logger, **params):
+def get_trainer(model, logger, **params):
     return pl.Trainer(
         logger=logger, **params['trainer'],
-        callbacks=[EarlyStopping('loss.val', patience=5, check_on_train_epoch_end=True),
+        callbacks=[EarlyStopping(model.loss, patience=5, check_on_train_epoch_end=True),
                    LearningRateMonitor()]
     )
 
@@ -64,7 +64,7 @@ def classification_into_forecasting(**params):
 
             classifier = ChunkClassifier(model=model)
             wandb_logger = get_logger(f'{run_id}_c', model.hyperparams, **params)
-            trainer = get_trainer(wandb_logger, **params)
+            trainer = get_trainer(classifier, wandb_logger, **params)
             trainer.fit(
                 classifier,
                 train_dataloaders=DataLoader(train_ds.for_classification(), **params['dataloader'], shuffle=True),
@@ -75,7 +75,7 @@ def classification_into_forecasting(**params):
             model.freeze_featurizer()
             forecaster = ChunkForecaster(model=model)
             wandb_logger = get_logger(f'{run_id}_c_f', model.hyperparams, **params)
-            trainer = get_trainer(wandb_logger, **params)
+            trainer = get_trainer(forecaster, wandb_logger, **params)
             trainer.fit(
                 forecaster,
                 train_dataloaders=DataLoader(train_ds.for_forecasting(), **params['dataloader'], shuffle=True),
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     params = {
         'experiment': {
             'attractors': dysts.base.get_attractor_list(),
-            'project': 'classification-forecasting',
+            'project': 'task-transfer',
             'train_part': 0.9,
             'random_seed': 42
         },
@@ -106,14 +106,14 @@ if __name__ == '__main__':
         },
         'dataloader': {
             'batch_size': 1024,
-            'num_workers': 4,
+            'num_workers': 8,
             'persistent_workers': True,
             'pin_memory': True
         },
         'trainer': {
             'max_epochs': 100,
             'deterministic': True,
-            'val_check_interval': 2,
+            'val_check_interval': 5,
             'limit_val_batches': 1,
             'log_every_n_steps': 1,
             'gpus': 1
