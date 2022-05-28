@@ -49,17 +49,19 @@ class ChunkClassifier(pl.LightningModule):
         optimizers = [AdamW(self.parameters(), **self.optimizer_params)]
         schedulers = [{
             'scheduler': ReduceLROnPlateau(optimizers[0], **self.lr_scheduler_params, verbose=True),
-            'monitor': 'loss.val'
+            'monitor': f'{self.loss}.val',
         }]
         return optimizers, schedulers
 
 
 class ChunkTripletFeaturizer(pl.LightningModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, *args, **kwargs):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, patience: int = 1, factor: float = 0.2,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
-        self.lr = lr
+        self.optimizer_params = {'lr': lr}
+        self.lr_scheduler_params = {'patience': patience, 'factor': factor}
         self.save_hyperparameters(ignore=['model'])
         self.loss = 'loss.triplet'
 
@@ -85,17 +87,23 @@ class ChunkTripletFeaturizer(pl.LightningModule):
         return self(x)
 
     def configure_optimizers(self):
-        return AdamW(self.parameters(), lr=self.lr)
+        optimizers = [AdamW(self.parameters(), **self.optimizer_params)]
+        schedulers = [{
+            'scheduler': ReduceLROnPlateau(optimizers[0], **self.lr_scheduler_params, verbose=True),
+            'monitor': f'{self.loss}.val',
+        }]
+        return optimizers, schedulers
 
 
 class ChunkForecaster(pl.LightningModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, *args, **kwargs):
+    def __init__(self, model: MultiTaskTimeSeriesModel, lr: float = 1e-2, patience: int = 1, factor: float = 0.2,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
-        self.lr = lr
+        self.optimizer_params = {'lr': lr}
+        self.lr_scheduler_params = {'patience': patience, 'factor': factor}
         self.save_hyperparameters(ignore=['model'])
-        self.prediction_func = self.model.forecast_in_chunks
         self.loss = 'loss.mse'
 
     def forward(self, x):
@@ -122,4 +130,9 @@ class ChunkForecaster(pl.LightningModule):
         return self.prediction_func(x, n=tensor.size(1) - self.model.n_in)
 
     def configure_optimizers(self):
-        return AdamW(self.parameters(), lr=self.lr)
+        optimizers = [AdamW(self.parameters(), **self.optimizer_params)]
+        schedulers = [{
+            'scheduler': ReduceLROnPlateau(optimizers[0], **self.lr_scheduler_params, verbose=True),
+            'monitor': f'{self.loss}.val',
+        }]
+        return optimizers, schedulers
