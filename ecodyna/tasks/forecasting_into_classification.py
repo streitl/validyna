@@ -61,6 +61,7 @@ def classification_into_forecasting(params: dict):
             model = Model(space_dim=space_dim, n_classes=len(tensors), **model_params, **params['models']['common'])
 
             run_id = f'{model.name()}_dim_{space_dim}'
+
             forecaster = ChunkForecaster(model=model)
             wandb_logger = get_logger(f'{run_id}_fct', model.hyperparams, **params)
             trainer = get_trainer(wandb_logger, **params)

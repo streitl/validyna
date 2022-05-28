@@ -463,8 +463,8 @@ class MyNBEATS(MultiTaskTimeSeriesModel):
     def _get_featurizer_parameters(self):
         # All the parameters except those of block.g_forward
         modules = [module for stack in self.nbeats.stacks
-                   for block in stack
-                   for module in [block.FC_stack, block.FC_forward, block.FC_backward, block.g_backward]]
+                   for block in stack.blocks
+                   for module in [block.FC_stack, block.FC_forecast, block.FC_backcast, block.g_backcast]]
         return [param for module in modules for param in module.parameters()]
 
     @staticmethod

@@ -138,6 +138,11 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
             self.assertLess(trainer.callback_metrics['acc.val'].item(), 0.5)
         self.assertTrue(True)
 
+    def test_freeze_featurizer(self):
+        for Model, params in small_models:
+            model = Model(n_classes=3, n_features=5, **params, **common_parameters)
+            model.freeze_featurizer()
+
 
 if __name__ == '__main__':
     unittest.main()
