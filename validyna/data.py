@@ -163,7 +163,10 @@ class ChunkMultiTaskDataset:
         return TensorDataset(self.X_in, self.X_class)
 
     def for_featurization(self):
-        return TripletDataset(self.trajectories_per_sys)
+        chunks_per_sys = dict()
+        for name, class_n in self.classes.items():
+            chunks_per_sys[name] = self.X_in[self.X_class == class_n]
+        return TripletDataset(chunks_per_sys)
 
     def for_forecasting(self):
         return TensorDataset(self.X_in, self.X_out)
@@ -174,9 +177,9 @@ class ChunkMultiTaskDataset:
 
 class TripletDataset(Dataset):
 
-    def __init__(self, trajectories_per_sys: dict[str, Tensor]):
-        assert len(trajectories_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
-        self.tensors = trajectories_per_sys
+    def __init__(self, chunks_per_sys: dict[str, Tensor]):
+        assert len(chunks_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
+        self.tensors = chunks_per_sys
         self.classes = list(sorted(self.tensors.keys()))
         self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
 

@@ -8,7 +8,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, Dataset
 
-from data import ChunkMultiTaskDataset
+from validyna.data import ChunkMultiTaskDataset
 from validyna.models.multitask_models import MultiTaskTimeSeriesModel
 
 
