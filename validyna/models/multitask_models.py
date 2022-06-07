@@ -302,7 +302,7 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         if self.forecast_type == 'multi':
             return self.forecast_multi_all(x)
         elif self.forecast_type == 'one_by_one':
-            return self.forecast_recurrently_one_by_one(x, n=self.n_out)[:, self.n_in:, :]
+            return self.forecast_recurrently_one_by_one(x, n=self.n_out)
         else:
             raise ValueError(f'Unknown RNN forecast type: {self.forecast_type}')
 
@@ -315,13 +315,12 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
     def forecast_recurrently_one_by_one(self, x: Tensor, n: int) -> Tensor:
         assert self.forecast_type == 'one_by_one', 'This forecast function requires forecast type `one_by_one`'
         B, T, D = x.size()
-        ts = torch.empty((B, T + n, D)).type_as(x)
-        ts[:, :T, :] = x
+        ts = torch.empty((B, n, D)).type_as(x)
         out, hn = self.rnn(x)
-        for i in range(T, T + n):
+        for i in range(n):
             features = self.featurizer(out[:, -1, :])
             ts[:, i, :] = self.forecaster(features)
-            out, hn = self.rnn(ts[:, i:i + 1, :], hn.detach())
+            out, hn = self.rnn(ts[:, i:i + 1, :], hn)
         return ts
 
     def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
