@@ -74,8 +74,8 @@ class ChunkClassifier(ChunkModule):
     def validation_step(self, batch, batch_idx, dataloader_idx):
         loss, acc = self._get_loss_acc(batch)
         which = self._val_dataloader_name(dataloader_idx)
-        self.log(f'{self.loss_name}.{which}', loss)
-        self.log(f'acc.{which}', acc)
+        self.log(f'{self.loss_name}.{which}', loss, add_dataloader_idx=False)
+        self.log(f'acc.{which}', acc, add_dataloader_idx=False)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -106,7 +106,7 @@ class ChunkTripletFeaturizer(ChunkModule):
     def validation_step(self, batch, batch_idx, dataloader_idx):
         loss = self._get_loss(batch)
         which = self._val_dataloader_name(dataloader_idx)
-        self.log(f'{self.loss_name}.{which}', loss)
+        self.log(f'{self.loss_name}.{which}', loss, add_dataloader_idx=False)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -137,7 +137,7 @@ class ChunkForecaster(ChunkModule):
     def validation_step(self, batch, batch_idx, dataloader_idx):
         loss = self._get_loss(batch)
         which = self._val_dataloader_name(dataloader_idx)
-        self.log(f'{self.loss_name}.{which}', loss)
+        self.log(f'{self.loss_name}.{which}', loss, add_dataloader_idx=False)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (tensor,) = batch
