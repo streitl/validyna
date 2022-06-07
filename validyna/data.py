@@ -138,7 +138,7 @@ class ChunkMultiTaskDataset:
 
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
         self.trajectories_per_sys = trajectories_per_sys
-        self.classes = {name: class_n for class_n, name in enumerate(trajectories_per_sys.keys())}
+        self.classes = {name: class_n for class_n, name in enumerate(sorted(trajectories_per_sys.keys()))}
         self.n_classes = len(self.classes)
         self.n_in = n_in
         self.n_out = n_out
@@ -146,7 +146,8 @@ class ChunkMultiTaskDataset:
         X_in = []
         X_out = []
         X_class = []
-        for class_n, trajectories in enumerate(trajectories_per_sys.values()):
+        for name, class_n in self.classes.items():
+            trajectories = self.trajectories_per_sys[name]
             slices = build_slices(trajectories, n=n_in + n_out)
             X_in.append(slices[:, :n_in, :])
             X_out.append(slices[:, -n_out:, :])
