@@ -4,8 +4,8 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from ecodyna.models.mutitask_models import MyRNN
-from ecodyna.models.task_modules import ChunkForecaster
+from validyna.models.multitask_models import MultiRNN
+from validyna.models.task_modules import ChunkForecaster
 
 
 class DatasetMetricLogger(pl.Callback, ABC):
@@ -44,9 +44,9 @@ class RNNForecastMetricLogger(ForecastMetricLogger):
         super().__init__(train_dataset, val_dataset)
 
     def on_train_epoch_end(self, trainer: pl.Trainer, forecaster: ChunkForecaster):
-        if not isinstance(forecaster.model, MyRNN):
-            raise ValueError(f'This Callback can only be applied to MyRNN')
-        rnn: MyRNN = forecaster.model
+        if not isinstance(forecaster.model, MultiRNN):
+            raise ValueError(f'This Callback can only be applied to MultiRNN')
+        rnn: MultiRNN = forecaster.model
         metrics = {}
         for dataset_name, dataset in [('train', self.train_dataset), ('val', self.val_dataset)]:
             # Some boilerplate to access the inner tensor from the dataset

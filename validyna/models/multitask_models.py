@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 
-from ecodyna.models.nbeats import NBEATS
+from models.nbeats import NBEATS
 
 
 def check_int_arg(arg: any, n_min: int, desc: str):
@@ -224,7 +224,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
         pass
 
 
-class MyRNN(MultiTaskTimeSeriesModel, ABC):
+class MultiRNN(MultiTaskTimeSeriesModel, ABC):
     """
     Implements LSTM and GRU.
     RNNs are natural featurizers.
@@ -317,11 +317,11 @@ class MyRNN(MultiTaskTimeSeriesModel, ABC):
         B, T, D = x.size()
         ts = torch.empty((B, T + n, D)).type_as(x)
         ts[:, :T, :] = x
-        out, last_hidden_state = self.rnn(x)
+        out, hn = self.rnn(x)
         for i in range(T, T + n):
             features = self.featurizer(out[:, -1, :])
             ts[:, i, :] = self.forecaster(features)
-            out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
+            out, hn = self.rnn(ts[:, i:i + 1, :], hn.detach())
         return ts
 
     def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
@@ -366,19 +366,19 @@ class MyRNN(MultiTaskTimeSeriesModel, ABC):
         return cls.RNN().__name__
 
 
-class MyGRU(MyRNN):
+class MultiGRU(MultiRNN):
     @staticmethod
     def RNN():
         return nn.GRU
 
 
-class MyLSTM(MyRNN):
+class MultiLSTM(MultiRNN):
     @staticmethod
     def RNN():
         return nn.LSTM
 
 
-class MyNBEATS(MultiTaskTimeSeriesModel):
+class MultiNBEATS(MultiTaskTimeSeriesModel):
     """
     Implements N-BEATS (Neural Basis Expansion Analysis for interpretable Time Series forecasting).
 
@@ -472,7 +472,7 @@ class MyNBEATS(MultiTaskTimeSeriesModel):
         return 'N-BEATS'
 
 
-class MyTransformer(MultiTaskTimeSeriesModel):
+class MultiTransformer(MultiTaskTimeSeriesModel):
     """
     Implements a simplified Transformer model (only actually uses the encoder).
     The Transformer is built for seq2seq. but it is a natural featurizer.
@@ -555,3 +555,6 @@ class MyTransformer(MultiTaskTimeSeriesModel):
     @staticmethod
     def name() -> str:
         return 'Transformer'
+
+
+all_implementations = [MultiGRU, MultiLSTM, MultiNBEATS, MultiTransformer]

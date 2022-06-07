@@ -5,9 +5,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import TensorDataset, random_split, DataLoader
 
-from ecodyna.models.mutitask_models import MultiTaskTimeSeriesModel
-from ecodyna.models.task_modules import ChunkClassifier
-from models.defaults import small_models
+from validyna.models.mutitask_models import MultiTaskTimeSeriesModel
+from validyna.models.task_modules import ChunkClassifier
 
 common_parameters = dict(n_in=5, space_dim=8)
 

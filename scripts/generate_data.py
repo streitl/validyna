@@ -1,23 +1,33 @@
-import dysts.base
 import dysts.flows
-import pytorch_lightning as pl
+from absl import app
+from dysts.base import get_attractor_list
+from ml_collections import config_flags
 
-from ecodyna.data import generate_trajectories, save_trajectories, build_data_path
+from validyna.data import generate_and_save_data_dictionary
+
+_CONFIG = config_flags.DEFINE_config_file('cfg')
+
+
+def main(_argv):
+    cfg = _CONFIG.value
+    attractors = cfg.attractors
+    if cfg.attractors == 'all':
+        attractors = get_attractor_list()
+
+    attractors = [getattr(dysts.flows, a)() for a in attractors]
+    if 'filter' in cfg:
+        attractors = [a.name for a in attractors if cfg.filter(a)]
+
+    common_string = '-'.join([f'{k}={v}' for k, v in sorted(cfg.data.common.items()) if k != 'verbose'])
+    if 'individual' in cfg.data:
+        for name, args in cfg.data.individual.items():
+            individual_string = '-'.join([f'{k}={v}' for k, v in sorted(args.items())])
+            save_location = f'{cfg.path}({common_string})/{name}({individual_string})'
+            generate_and_save_data_dictionary(attractors, dir_path=save_location, **args, **cfg.data.common)
+    else:
+        save_location = f'{cfg.path}({common_string}))'
+        generate_and_save_data_dictionary(attractors, dir_path=save_location, **cfg.data.common)
+
 
 if __name__ == '__main__':
-    params = {
-        'data': {
-            'trajectory_count': 100,
-            'trajectory_length': 100,
-            'resample': True,
-            'pts_per_period': 50,
-            'ic_noise': 0.01,
-            'seed': 42
-        }
-    }
-
-    pl.seed_everything(params['data']['seed'])
-
-    for attractor_name in dysts.base.get_attractor_list():
-        trajectories = generate_trajectories(getattr(dysts.flows, attractor_name)(), **params['data'], verbose=True)
-        save_trajectories(trajectories, path=build_data_path(attractor=attractor_name, **params['data']))
+    app.run(main)

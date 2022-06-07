@@ -7,8 +7,10 @@ from torch import Tensor, nn
 
 class NBEATS(nn.Module):
     """
+    Implements the Neural-Basis Expansion Time Series model for forecasting.
     Heavily inspired from
     https://github.com/unit8co/darts/blob/e3f33094ba0b02a96b25db9101b2be6def2d9fc7/darts/models/forecasting/nbeats.py
+    but also allowing the feature extraction weights to be frozen.
     """
 
     class _Block(nn.Module):
@@ -34,8 +36,9 @@ class NBEATS(nn.Module):
             self.FC_forecast = nn.Linear(layer_width, expansion_coefficient_dim)
 
             self.g_backcast = nn.Linear(expansion_coefficient_dim, n_in)
+            self.g_forecast = None
             if n_out is not None:
-                self.g_forecast = nn.Linear(expansion_coefficient_dim, n_out)
+                self.set_n_out(n_out)
 
         def set_n_out(self, n_out: int):
             self.n_out = n_out
