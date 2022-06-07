@@ -177,7 +177,7 @@ class TripletDataset(Dataset):
     def __init__(self, trajectories_per_sys: dict[str, Tensor]):
         assert len(trajectories_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
         self.tensors = trajectories_per_sys
-        self.classes = list(self.datasets.keys())
+        self.classes = list(sorted(self.tensors.keys()))
         self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
 
     def __getitem__(self, index: int):
