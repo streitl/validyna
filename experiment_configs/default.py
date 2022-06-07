@@ -7,6 +7,7 @@ def get_config():
     cfg = ConfigDict()
 
     cfg.seed = 2022
+    cfg.gpus = 1
 
     cfg.task = placeholder(str, required=True)
     cfg.project = placeholder(str, required=True)
