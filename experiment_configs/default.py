@@ -22,9 +22,9 @@ def get_config():
     cfg.results_dir = f'{ROOT_DIR}/results'
 
     cfg.datasets = ConfigDict({
-        'train': f'{ROOT_DIR}/data/default/train(count=100-ic_noise=0.01)',
-        'val': f'{ROOT_DIR}/data/default/val(count=30-ic_noise=0.01)',
-        'test': f'{ROOT_DIR}/data/default/test(count=20-ic_noise=10)'
+        'train': f'{ROOT_DIR}/data/default/train(count=100-ic_noise=0.01-ic_scale=1)',
+        'val': f'{ROOT_DIR}/data/default/val(count=30-ic_noise=0.01-ic_scale=1)',
+        'test': f'{ROOT_DIR}/data/default/test(count=20-ic_noise=10-ic_scale=0.5)'
     })
     cfg.trainer = ConfigDict({
         'max_epochs': 100,
