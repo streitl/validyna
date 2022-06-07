@@ -25,7 +25,7 @@ def get_config():
     cfg.datasets = ConfigDict({
         'train': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1)',
         'val': f'{data_dir}/val(count=30-ic_noise=0.01-ic_scale=1)',
-        'test': f'{data_dir}/test(count=20-ic_noise=10-ic_scale=0.5)'
+        'test': f'{data_dir}/test(count=20-ic_noise=0.1-ic_scale=0.5)'
     })
     cfg.trainer = ConfigDict({
         'max_epochs': 100,
