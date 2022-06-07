@@ -1,6 +1,7 @@
 import os
 
 import pytorch_lightning as pl
+import torch
 from absl import app
 from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping
@@ -19,6 +20,7 @@ def train_model_for_task(
         datasets: dict[str, ChunkMultiTaskDataset],
         cfg: ConfigDict
 ):
+    torch.autograd.set_detect_anomaly(True)
     run_name = f'{model.name()}_{task}'
     wandb = WandbLogger(project=cfg.project, name=run_name, save_dir=cfg.results_dir)
     wandb._id = f'{run_name}_{wandb.experiment.id}'
