@@ -84,7 +84,7 @@ def load_data_dictionary(dir_path: str) -> dict[str, Tensor]:
     result = dict()
     for filename in os.listdir(dir_path):
         attractor = re.search('attractor=(.+).pt', filename).group(0)
-        result[attractor] = load_from_path(filename)
+        result[attractor] = load_from_path(f'{dir_path}/{filename}')
     return result
 
 

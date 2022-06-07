@@ -63,7 +63,7 @@ def run_experiment(cfg: ConfigDict):
     for model_name, model_args in cfg.models.items():
         pl.seed_everything(cfg.seed, workers=True)
         Model = model_registry[model_name]
-        model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.data.space_dim, **model_args)
+        model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         if 'pre_task' in cfg:
             train_model_for_task(model, cfg.pre_task, datasets, cfg)
             model.freeze_featurizer()

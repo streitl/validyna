@@ -10,13 +10,14 @@ def get_config():
     cfg.gpus = 1
 
     cfg.task = placeholder(str, required=True)
+
     cfg.project = placeholder(str, required=True)
+    cfg.run_id = None
 
     cfg.n_in = 10
     cfg.n_out = 10
     cfg.n_features = 32
 
-    cfg.run_id = None
     cfg.space_dim = 3
 
     cfg.results_dir = f'{ROOT_DIR}/results'
