@@ -83,7 +83,7 @@ def generate_and_save_data_dictionary(attractors: list[str], dir_path: str, **kw
 def load_data_dictionary(dir_path: str) -> dict[str, Tensor]:
     result = dict()
     for filename in os.listdir(dir_path):
-        attractor = re.match('attractor=(\w).pt', filename).group(0)
+        attractor = re.search('attractor=(.+).pt', filename).group(0)
         result[attractor] = load_from_path(filename)
     return result
 
