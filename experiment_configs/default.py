@@ -7,7 +7,6 @@ def get_config():
     cfg = ConfigDict()
 
     cfg.seed = 2022
-    cfg.gpus = 1
 
     cfg.task = placeholder(str, required=True)
 
@@ -34,7 +33,7 @@ def get_config():
         'val_check_interval': 5,
         'limit_val_batches': 1,
         'log_every_n_steps': 1,
-        'gpus': 0
+        'gpus': 1
     })
     cfg.early_stopping = ConfigDict({
         'patience': 5
