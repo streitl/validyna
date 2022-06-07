@@ -36,7 +36,8 @@ def get_config():
         'gpus': 1
     })
     cfg.early_stopping = ConfigDict({
-        'patience': 5
+        'patience': 5,
+        'check_on_train_epoch_end': True
     })
     cfg.optimizer = ConfigDict({
         'lr': 0.01
