@@ -31,10 +31,10 @@ class ChunkModule(pl.LightningModule, ABC):
         return self.dataloaders['train']
 
     def val_dataloader(self):
-        return self.dataloaders['val']
+        return [self.dataloaders['val'], self.dataloaders['test']]
 
-    def test_dataloader(self):
-        return self.dataloaders['test']
+    def _val_dataloader_name(self, dataloader_idx):
+        return ['val', 'test'][dataloader_idx]
 
     def configure_optimizers(self):
         optimizers = [AdamW(self.parameters(), **self.cfg.optimizer)]
@@ -71,15 +71,11 @@ class ChunkClassifier(ChunkModule):
         self.log('acc.train', acc, prog_bar=True)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         loss, acc = self._get_loss_acc(batch)
-        self.log(f'{self.loss_name}.val', loss)
-        self.log('acc.val', acc)
-
-    def test_step(self, batch, batch_idx):
-        loss, acc = self._get_loss_acc(batch)
-        self.log(f'{self.loss_name}.test', loss)
-        self.log('acc.test', acc)
+        which = self._val_dataloader_name(dataloader_idx)
+        self.log(f'{self.loss_name}.{which}', loss)
+        self.log(f'acc.{which}', acc)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -107,13 +103,10 @@ class ChunkTripletFeaturizer(ChunkModule):
         self.log(f'{self.loss_name}.train', loss)
         return {'loss': loss}
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         loss = self._get_loss(batch)
-        self.log(f'{self.loss_name}.val', loss)
-
-    def test_step(self, batch, batch_idx):
-        loss = self._get_loss(batch)
-        self.log(f'{self.loss_name}.test', loss)
+        which = self._val_dataloader_name(dataloader_idx)
+        self.log(f'{self.loss_name}.{which}', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (x,) = batch
@@ -141,13 +134,10 @@ class ChunkForecaster(ChunkModule):
         self.log(f'{self.loss_name}.train', loss)
         return {'loss': loss}
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         loss = self._get_loss(batch)
-        self.log(f'{self.loss_name}.val', loss)
-
-    def test_step(self, batch, batch_idx):
-        loss = self._get_loss(batch)
-        self.log(f'{self.loss_name}.test', loss)
+        which = self._val_dataloader_name(dataloader_idx)
+        self.log(f'{self.loss_name}.{which}', loss)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         (tensor,) = batch

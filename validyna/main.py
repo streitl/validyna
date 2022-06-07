@@ -27,8 +27,6 @@ def train_model_for_task(
                          callbacks=[EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping)],
                          **cfg.trainer)
     trainer.fit(module)
-    test_metrics = trainer.test(module, module.test_dataloader())[0]
-    wandb.log_metrics(test_metrics)
     wandb.experiment.finish(quiet=True)
 
 
