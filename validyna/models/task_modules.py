@@ -55,7 +55,10 @@ class ChunkClassifier(ChunkModule):
         return dataset.for_classification()
 
     def forward(self, x):
-        return self.model(x, kind='classify')
+        out = self.model(x, kind='classify')
+        if out.isnan().any() or out.isinf().any():
+            print(f'Error in output of model (nan or inf)')
+        return out
 
     def _get_loss_acc(self, batch):
         x, y = batch
@@ -92,7 +95,10 @@ class ChunkTripletFeaturizer(ChunkModule):
         return dataset.for_featurization()
 
     def forward(self, x):
-        return self.model(x, kind='featurize')
+        out = self.model(x, kind='featurize')
+        if out.isnan().any() or out.isinf().any():
+            print(f'Error in output of model (nan or inf)')
+        return out
 
     def _get_loss(self, batch):
         a, p, n = batch
@@ -123,7 +129,10 @@ class ChunkForecaster(ChunkModule):
         return dataset.for_forecasting()
 
     def forward(self, x):
-        return self.model(x, kind='forecast')
+        out = self.model(x, kind='forecast')
+        if out.isnan().any() or out.isinf().any():
+            print(f'Error in output of model (nan or inf)')
+        return out
 
     def _get_loss(self, batch):
         x, y = batch
