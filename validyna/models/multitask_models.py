@@ -294,8 +294,8 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         features = self._forward_featurize(x)
         return self.classifier(features)
 
-    def _forward_featurize(self, x: Tensor) -> Tensor:
-        output, last_hidden_layers = self.rnn(x)
+    def _forward_featurize(self, x: Tensor, hx: Optional[Tensor] = None) -> Tensor:
+        output, hx = self.rnn(x, hx)
         natural_features = output[:, -1, :]  # use the last hidden layer as natural features
         features = self.featurizer(natural_features)
         return features
@@ -314,30 +314,15 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         features = self._forward_featurize(x)
         return self.forecaster(features).reshape(B, self.n_out, self.space_dim)
 
-    def forecast_recurrently_one_by_one(self, x: Tensor, n: int) -> Tensor:
+    def forecast_recurrently_one_by_one(self, x: Tensor, n: int, hx: Optional[Tensor] = None) -> Tensor:
         assert self.forecast_type == 'one_by_one', 'This forecast function requires forecast type `one_by_one`'
         B, T, D = x.size()
         ts = torch.empty((B, n, D)).type_as(x)
-        out, hx = self.rnn(x)
+        out, hx = self.rnn(x, hx)
         for i in range(n):
             features = self.featurizer(out[:, -1, :])
             ts[:, i, :] = self.forecaster(features)
-            out, _ = self.rnn(ts[:, i:i + 1, :].clone(), hx)
-        return ts
-
-    def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
-        """
-        Forecasts recurrently by only keeping the first prediction of the multi-timestep output.
-        """
-        assert self.forecast_type == 'multi', 'This forecast function requires forecast type `multi`'
-        B, T, D = x.size()
-        ts = torch.empty((B, T + n, D)).type_as(x)
-        ts[:, :T, :] = x
-        out, last_hidden_state = self.rnn(x)
-        for i in range(T, T + n):
-            features = self.featurizer(out[:, -1, :])
-            ts[:, i, :] = self.forecaster(features).reshape(B, self.n_out, D)[:, 0, :]  # only keep first timestep
-            out, last_hidden_state = self.rnn(ts[:, i:i + 1, :], last_hidden_state)
+            out, hx = self.rnn(ts[:, i:i + 1, :].clone(), hx)
         return ts
 
     def get_applicable_forecast_functions(self):
