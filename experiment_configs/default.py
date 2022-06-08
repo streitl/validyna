@@ -8,10 +8,10 @@ def get_config():
 
     cfg.seed = 2022
 
-    cfg.task = placeholder('str')
+    cfg.task = placeholder(str)
 
-    cfg.project = placeholder('str')
-    cfg.run_id = placeholder('str')
+    cfg.project = placeholder(str)
+    cfg.run_id = placeholder(str)
 
     cfg.n_in = 10
     cfg.n_out = 10
