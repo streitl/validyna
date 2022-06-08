@@ -7,6 +7,8 @@ from torch import nn, Tensor
 
 from validyna.models.nbeats import NBEATS
 
+torch.autograd.set_detect_anomaly(True)
+
 
 def check_int_arg(arg: any, n_min: int, desc: str):
     """
