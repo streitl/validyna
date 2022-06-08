@@ -1,9 +1,10 @@
 import os
+from typing import Optional
 
 import pytorch_lightning as pl
 from absl import app
 from ml_collections import ConfigDict, config_flags
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 
 from validyna.data import ChunkMultiTaskDataset, load_data_dictionary
@@ -17,14 +18,19 @@ def train_model_for_task(
         model: mm.MultiTaskTimeSeriesModel,
         task: str,
         datasets: dict[str, ChunkMultiTaskDataset],
-        cfg: ConfigDict
+        cfg: ConfigDict,
+        run_suffix: Optional[str] = None
 ):
-    run_name = f'{model.name()}_{task}'
+    if run_suffix is None:
+        run_name = f'{model.name()}_{task}'
+    else:
+        run_name = f'{model.name()}_{run_suffix}'
     wandb = WandbLogger(project=cfg.project, name=run_name, save_dir=cfg.results_dir)
     wandb._id = f'{run_name}_{wandb.experiment.id}'
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
     trainer = pl.Trainer(logger=wandb,
-                         callbacks=[EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping)],
+                         callbacks=[EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping),
+                                    LearningRateMonitor(logging_interval='epoch')],
                          **cfg.trainer)
     trainer.fit(module)
     wandb.experiment.finish(quiet=True)
@@ -62,10 +68,12 @@ def run_experiment(cfg: ConfigDict):
         pl.seed_everything(cfg.seed, workers=True)
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
+        run_suffix = None
         if 'pre_task' in cfg:
             train_model_for_task(model, cfg.pre_task, datasets, cfg)
             model.freeze_featurizer()
-        train_model_for_task(model, cfg.task, datasets, cfg)
+            run_suffix = f'{cfg.pre_task}_{cfg.task}'
+        train_model_for_task(model, cfg.task, datasets, cfg, run_suffix=run_suffix)
 
 
 def main(_argv):

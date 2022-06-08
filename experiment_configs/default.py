@@ -8,10 +8,10 @@ def get_config():
 
     cfg.seed = 2022
 
-    cfg.task = placeholder(str, required=True)
+    cfg.task = placeholder('str')
 
-    cfg.project = placeholder(str, required=True)
-    cfg.run_id = None
+    cfg.project = placeholder('str')
+    cfg.run_id = placeholder('str')
 
     cfg.n_in = 10
     cfg.n_out = 10
@@ -48,7 +48,7 @@ def get_config():
     })
     cfg.dataloader = ConfigDict({
         'batch_size': 1024,
-        'num_workers': 8,
+        'num_workers': 4,
         'persistent_workers': True,
         'pin_memory': True
     })

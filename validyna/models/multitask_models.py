@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Literal, Optional, Type
 
+import pdb
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 
-from models.nbeats import NBEATS
+from validyna.models.nbeats import NBEATS
 
 
 def check_int_arg(arg: any, n_min: int, desc: str):
@@ -318,9 +319,13 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         ts = torch.empty((B, n, D)).type_as(x)
         out, hn = self.rnn(x)
         for i in range(n):
+            pdb.set_trace()
             features = self.featurizer(out[:, -1, :])
+            pdb.set_trace()
             ts[:, i, :] = self.forecaster(features)
-            out, hn = self.rnn(ts[:, i:i + 1, :], hn)
+            pdb.set_trace()
+            out, hn = self.rnn(ts[:, i:i + 1, :], hn.detach())
+            pdb.set_trace()
         return ts
 
     def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
