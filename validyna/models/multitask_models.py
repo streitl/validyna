@@ -321,10 +321,8 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         out, hx = self.rnn(x)
         for i in range(n):
             features = self.featurizer(out[:, -1, :])
-            ts = ts.index_put(indices=[Tensor(b, i, d) for b in range(B) for d in range(D)],
-                              values=self.forecaster(features))
-            # ts[:, i, :] = self.forecaster(features)
-            out, _ = self.rnn(ts[:, i:i + 1, :], hx)
+            ts[:, i, :] = self.forecaster(features)
+            out, _ = self.rnn(ts[:, i:i + 1, :].clone(), hx)
         return ts
 
     def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
