@@ -34,7 +34,7 @@ def get_config():
         'limit_val_batches': 1,
         'log_every_n_steps': 1,
         'gpus': 1,
-        'terminate_on_nan': True,
+        'detect_anomaly': True,
     })
     cfg.early_stopping = ConfigDict({
         'patience': 5,
