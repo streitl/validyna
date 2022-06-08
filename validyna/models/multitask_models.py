@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Literal, Optional, Type
 
-import pdb
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
@@ -317,15 +316,11 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         assert self.forecast_type == 'one_by_one', 'This forecast function requires forecast type `one_by_one`'
         B, T, D = x.size()
         ts = torch.empty((B, n, D)).type_as(x)
-        out, hn = self.rnn(x)
+        out, _ = self.rnn(x)
         for i in range(n):
-            pdb.set_trace()
             features = self.featurizer(out[:, -1, :])
-            pdb.set_trace()
             ts[:, i, :] = self.forecaster(features)
-            pdb.set_trace()
-            out, hn = self.rnn(ts[:, i:i + 1, :], hn.detach())
-            pdb.set_trace()
+            out, _ = self.rnn(ts[:, :i + 1, :])
         return ts
 
     def forecast_recurrently_multi_first(self, x: Tensor, n: int) -> Tensor:
