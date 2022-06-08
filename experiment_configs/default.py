@@ -23,9 +23,9 @@ def get_config():
 
     data_dir = f'{ROOT_DIR}/data/default(length=500-pts_per_period=50-resample=True-seed=2022)'
     cfg.datasets = ConfigDict({
-        'test': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1)',
+        'train': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1)',
         'val': f'{data_dir}/val(count=30-ic_noise=0.01-ic_scale=1)',
-        'train': f'{data_dir}/test(count=20-ic_noise=0.1-ic_scale=0.5)'
+        'test': f'{data_dir}/test(count=20-ic_noise=0.1-ic_scale=0.5)'
     })
     cfg.trainer = ConfigDict({
         'max_epochs': 100,
@@ -33,7 +33,8 @@ def get_config():
         'val_check_interval': 5,
         'limit_val_batches': 1,
         'log_every_n_steps': 1,
-        'gpus': 1
+        'gpus': 1,
+        'terminate_on_nan': True,
     })
     cfg.early_stopping = ConfigDict({
         'patience': 5,
