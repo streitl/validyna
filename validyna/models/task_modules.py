@@ -136,7 +136,10 @@ class ChunkForecaster(ChunkModule):
 
     def _get_loss(self, batch):
         x, y = batch
-        return F.mse_loss(self(x), y)
+        loss = F.mse_loss(self(x), y)
+        if loss.isnan().any() or loss.isinf().any():
+            print(f'Error in loss (nan or inf) for input {x[loss.isnan() | loss.isinf()], y[loss.isnan() | loss.isinf()]}')
+        return loss
 
     def training_step(self, batch, batch_idx):
         loss = self._get_loss(batch)
