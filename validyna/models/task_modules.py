@@ -19,11 +19,11 @@ class ChunkModule(pl.LightningModule, ABC):
         self.model = model
         self.loss_name = loss_name
         self.cfg = cfg
-        train_mean = datasets['train'].X_in.mean(dim=[0, 2], keepdim=True)
-        train_std = datasets['train'].X_in.std(dim=[0, 2], keepdim=True)
-        self.dataloaders = {name: DataLoader(self._transform_data(dataset, mean=train_mean, std=train_std),
-                                             shuffle=True, **cfg.dataloader)
-                            for name, dataset in datasets.items()}
+        self.dataloaders = {
+            name: DataLoader(self._transform_data(dataset, mean=datasets['train'].mean, std=datasets['train'].std),
+                             shuffle=True, **cfg.dataloader)
+            for name, dataset in datasets.items()
+        }
 
         self.save_hyperparameters(ignore=['model', 'datasets'])
 

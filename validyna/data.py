@@ -157,6 +157,10 @@ class ChunkMultiTaskDataset:
         self.X_out = torch.concat(X_out, dim=0)
         self.X_class = torch.concat(X_class, dim=0)
 
+        X = torch.concat((self.X_in, self.X_out), dim=1)
+        self.mean = X.mean(dim=[0, 1])
+        self.std = X.std(dim=[0, 1])
+
         self.space_dim = self.X_in.size(2)
 
     def for_classification(self, mean: Tensor = 0, std: Tensor = 1):
