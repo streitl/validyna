@@ -25,7 +25,7 @@ def train_model_for_task(
         run_name = f'{model.name()}_{task}'
     else:
         run_name = f'{model.name()}_{run_suffix}'
-    wandb = WandbLogger(project=cfg.project, name=run_name, save_dir=cfg.results_dir)
+    wandb = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
     wandb._id = f'{run_name}_{wandb.experiment.id}'
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
     trainer = pl.Trainer(logger=wandb,
