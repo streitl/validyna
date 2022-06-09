@@ -20,7 +20,7 @@ def check_int_arg(arg: any, n_min: int, desc: str):
     return arg
 
 
-def make_simple_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, activation: nn.Module = nn.ReLU()):
+def make_simple_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, Activation: Type[nn.Module] = nn.ReLU):
     """
     Args:
         - i: number of input units
@@ -29,8 +29,8 @@ def make_simple_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, activation
         - n_hidden_layers: number of hidden layers
         - activation: activation function applied after each linear layer except the last
     """
-    modules = [nn.Linear(i, h), activation] + \
-              [nn.Linear(h, h), activation] * (n_hidden_layers - 1) + \
+    modules = [nn.Linear(i, h), Activation(), nn.BatchNorm1d(h)] + \
+              [nn.Linear(h, h), Activation(), nn.BatchNorm1d(h)] * (n_hidden_layers - 1) + \
               [nn.Linear(h, o)]
     return nn.Sequential(*modules)
 
