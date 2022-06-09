@@ -15,7 +15,7 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
     x_min, y_min, z_min = np.min(array_all, axis=(0, 1))
     x_max, y_max, z_max = np.max(array_all, axis=(0, 1))
 
-    w = 4
+    w = min(4, n_plots)
     h = int(np.ceil(n_plots / w))
 
     fig = plt.figure(figsize=(h * 4, w * 4))
@@ -55,7 +55,7 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
     maxs = np.max(array_all, axis=(0, 1))
 
     fig = plt.figure(figsize=(16, n_plots * space_dim))
-    subfigs = fig.subfigures(n_plots, 1, hspace=0.01)
+    subfigs = fig.subfigures(min(n_plots, 2), 1, hspace=0.01)
 
     for i in range(n_plots):
         ic = arrays[0][i, 0, :]

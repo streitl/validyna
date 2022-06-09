@@ -9,6 +9,13 @@ def get_config():
     cfg.filter = lambda a: len(a.ic) == 3
     cfg.path = f'{ROOT_DIR}/data/default'
     cfg.data = ConfigDict()
+    cfg.data.common = ConfigDict({
+        'length': 1000,
+        'resample': True,
+        'pts_per_period': 100,
+        'seed': 2022,
+        'verbose': True,
+    })
     cfg.data.individual = ConfigDict({
         'train': {
             'count': 100,
@@ -16,21 +23,14 @@ def get_config():
             'ic_scale': 1
         },
         'val': {
-            'count': 30,
+            'count': 20,
             'ic_noise': 0.01,
             'ic_scale': 1
         },
         'test': {
-            'count': 20,
-            'ic_noise': 0.1,
-            'ic_scale': 0.5
+            'count': 30,
+            'ic_noise': 0.05,
+            'ic_scale': 1.001
         }
-    })
-    cfg.data.common = ConfigDict({
-        'length': 500,
-        'resample': True,
-        'pts_per_period': 50,
-        'seed': 2022,
-        'verbose': True,
     })
     return cfg
