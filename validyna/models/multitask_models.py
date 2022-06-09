@@ -322,7 +322,7 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         for i in range(n):
             features = self.featurizer(out[:, -1, :])
             ts[:, i, :] = self.forecaster(features)
-            out, hx = self.rnn(ts[:, i:i + 1, :], hx)
+            out, hx = self.rnn(ts[:, i:i + 1, :].clone(), hx)
         return ts
 
     def get_applicable_forecast_functions(self):
