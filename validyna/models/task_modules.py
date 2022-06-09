@@ -19,12 +19,16 @@ class ChunkModule(pl.LightningModule, ABC):
         self.model = model
         self.loss_name = loss_name
         self.cfg = cfg
-        self.dataloaders = {name: DataLoader(self._transform_data(dataset), **cfg.dataloader, shuffle=True)
+        train_mean = datasets['train'].X_in.mean(dim=[0, 2])
+        train_std = datasets['train'].X_in.std(dim=[0, 2])
+        self.dataloaders = {name: DataLoader(self._transform_data(dataset, mean=train_mean, std=train_std),
+                                             shuffle=True, **cfg.dataloader)
                             for name, dataset in datasets.items()}
+
         self.save_hyperparameters(ignore=['model', 'datasets'])
 
     @abstractmethod
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
+    def _transform_data(self, dataset: ChunkMultiTaskDataset, **kwargs) -> Dataset:
         pass
 
     def train_dataloader(self):
@@ -51,8 +55,8 @@ class ChunkClassifier(ChunkModule):
         super().__init__(model, datasets, cfg, loss_name='loss.cross')
         model.prepare_to_classify(n_classes=datasets['train'].n_classes)
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_classification()
+    def _transform_data(self, dataset: ChunkMultiTaskDataset, **kwargs) -> Dataset:
+        return dataset.for_classification(**kwargs)
 
     def forward(self, x):
         return self.model(x, kind='classify')
@@ -88,8 +92,8 @@ class ChunkTripletFeaturizer(ChunkModule):
         super().__init__(model, datasets, cfg, loss_name='loss.triplet')
         model.prepare_to_featurize(n_features=cfg.n_features)
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_featurization()
+    def _transform_data(self, dataset: ChunkMultiTaskDataset, **kwargs) -> Dataset:
+        return dataset.for_featurization(**kwargs)
 
     def forward(self, x):
         return self.model(x, kind='featurize')
@@ -119,8 +123,8 @@ class ChunkForecaster(ChunkModule):
         super().__init__(model, datasets, cfg, loss_name='loss.mse')
         model.prepare_to_forecast(n_out=cfg.n_out)
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_forecasting()
+    def _transform_data(self, dataset: ChunkMultiTaskDataset, **kwargs) -> Dataset:
+        return dataset.for_forecasting(**kwargs)
 
     def forward(self, x):
         return self.model(x, kind='forecast')

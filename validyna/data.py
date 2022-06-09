@@ -159,20 +159,20 @@ class ChunkMultiTaskDataset:
 
         self.space_dim = self.X_in.size(2)
 
-    def for_classification(self):
-        return TensorDataset(self.X_in, self.X_class)
+    def for_classification(self, mean: Tensor = 0, std: Tensor = 1):
+        return TensorDataset((self.X_in - mean) / std, self.X_class)
 
-    def for_featurization(self):
+    def for_featurization(self, mean: Tensor = 0, std: Tensor = 1):
         chunks_per_sys = dict()
         for name, class_n in self.classes.items():
-            chunks_per_sys[name] = self.X_in[self.X_class == class_n]
+            chunks_per_sys[name] = ((self.X_in - mean) / std)[self.X_class == class_n]
         return TripletDataset(chunks_per_sys)
 
-    def for_forecasting(self):
-        return TensorDataset(self.X_in, self.X_out)
+    def for_forecasting(self, mean: Tensor = 0, std: Tensor = 1):
+        return TensorDataset((self.X_in - mean) / std, (self.X_out - mean) / std)
 
-    def for_all(self):
-        return TensorDataset(self.X_in, self.X_class, self.X_out)
+    def for_all(self, mean: Tensor = 0, std: Tensor = 1):
+        return TensorDataset((self.X_in - mean) / std, self.X_class, (self.X_out - mean) / std)
 
 
 class TripletDataset(Dataset):

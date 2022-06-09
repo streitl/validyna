@@ -51,7 +51,7 @@ def get_config():
         'batch_size': 1024,
         'num_workers': 4,
         'persistent_workers': True,
-        'pin_memory': True
+        'pin_memory': True,
     })
     cfg.models = ConfigDict({
         'MultiNBEATS': {
