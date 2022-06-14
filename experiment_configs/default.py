@@ -41,7 +41,7 @@ def get_config():
         'log_every_n_steps': 1,
         'gpus': 1,
         'detect_anomaly': True,
-        'fast_dev_run': True,
+        'fast_dev_run': False,
     })
     cfg.early_stopping = ConfigDict({'patience': 3, 'check_on_train_epoch_end': True})
     cfg.optimizer = (AdamW, {'lr': 0.01})
