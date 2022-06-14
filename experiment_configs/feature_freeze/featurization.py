@@ -1,3 +1,5 @@
+from ml_collections import ConfigDict
+
 from experiment_configs.default import get_config as default_config
 
 
@@ -15,5 +17,6 @@ def get_config():
             'task': 'classification',
         }
     ]
+    cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
     cfg.project = 'feature_freeze'
     return cfg
