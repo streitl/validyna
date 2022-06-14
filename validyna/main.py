@@ -60,7 +60,7 @@ def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
 def run_experiment(cfg: ConfigDict):
     """
     Args:
-        -cfg (ConfigDict): a configuration dictionary with the following keys:
+        - cfg (ConfigDict): a configuration dictionary with the following keys:
             - results_dir (str): the path of the directory to save the results
             - seed (int): the random seed to be used for the entire experiment for each model training
             - project (str): the name of the project, passed to Weights and Biases (wandb)
@@ -88,11 +88,11 @@ def run_experiment(cfg: ConfigDict):
 
     datasets = make_datasets(cfg.tasks.common.get('datasets', {}), cfg.n_in, cfg.n_out)
 
-    for model_name, model_args in cfg.models.items():
+    for model_name, model_args in cfg.models:
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
-            task_datasets = {**datasets}
+            task_datasets = datasets.copy()
             task_datasets.update(make_datasets(task_cfg.get('datasets', {}), cfg.n_in, cfg.n_out))
 
             train_model_for_task(model, task_cfg.task, task_datasets, cfg)
