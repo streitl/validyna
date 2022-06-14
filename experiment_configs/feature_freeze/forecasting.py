@@ -12,6 +12,7 @@ def get_config():
         },
         {
             'task': 'classification',
+            'run': 'forecasting>classification'
         }
     ]
     cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]

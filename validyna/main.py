@@ -93,7 +93,7 @@ def run_experiment(cfg: ConfigDict):
             task_datasets = datasets.copy()
             task_datasets.update(make_datasets(task_cfg.get('datasets', {}), cfg.n_in, cfg.n_out))
 
-            train_model_for_task(model, task_cfg.task, task_datasets, cfg)
+            train_model_for_task(model, task_cfg.task, task_datasets, cfg, run_suffix=task_cfg.get('run'))
 
             if task_cfg.get('freeze_featurizer', False):
                 model.freeze_featurizer()
