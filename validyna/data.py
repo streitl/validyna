@@ -81,6 +81,7 @@ def generate_and_save_data_dictionary(attractors: list[str], dir_path: str, **kw
 
 
 def load_data_dictionary(dir_path: str) -> dict[str, Tensor]:
+    print(f'Loading {dir_path}')
     result = dict()
     for filename in os.listdir(dir_path):
         attractor = re.search('attractor=(.+).pt', filename).group(1)
@@ -132,6 +133,11 @@ def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> 
     X = slices[:, :n_in, :]
     y = slices[:, n_in:, :]
     return TensorDataset(X, y)
+
+
+def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
+    return {name: ChunkMultiTaskDataset(load_data_dictionary(dir_path=path), n_in, n_out)
+            for name, path in paths.items()}
 
 
 def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)) -> Tensor:

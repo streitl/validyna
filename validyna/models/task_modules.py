@@ -3,9 +3,8 @@ from abc import ABC, abstractmethod
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from ml_collections import ConfigDict
 import torch.optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from ml_collections import ConfigDict
 from torch.utils.data import DataLoader, Dataset
 
 from validyna.data import ChunkMultiTaskDataset

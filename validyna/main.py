@@ -1,5 +1,5 @@
 import os
-from copy import deepcopy, copy
+from copy import deepcopy
 from typing import Optional
 
 import pytorch_lightning as pl
@@ -7,9 +7,9 @@ from absl import app
 from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 
-from validyna.data import ChunkMultiTaskDataset, load_data_dictionary
+from validyna.data import ChunkMultiTaskDataset, make_datasets
 from validyna.models import multitask_models as mm
-from validyna.registry import model_registry, task_registry
+from validyna.registry import task_registry
 
 _CONFIG = config_flags.DEFINE_config_file('cfg')
 
@@ -30,15 +30,17 @@ def train_model_for_task(
         - cfg (ConfigDict): as specified in `run_experiment`, using only the keys
             - seed
             - use_wandb
+            - project
+            - results_dir
             - trainer
             - early_stopping
         - run_suffix (str)
     """
     pl.seed_everything(cfg.seed, workers=True)
-    run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
     if cfg.get('use_wandb', False):
         from pytorch_lightning.loggers import WandbLogger
+        run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
@@ -52,18 +54,14 @@ def train_model_for_task(
         trainer_kwargs['logger'].experiment.finish(quiet=True)
 
 
-def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
-    return {name: ChunkMultiTaskDataset(load_data_dictionary(dir_path=path), n_in, n_out)
-            for name, path in paths.items()}
-
-
 def run_experiment(cfg: ConfigDict):
     """
     Args:
         - cfg (ConfigDict): a configuration dictionary with the following keys:
             - results_dir (str): the path of the directory to save the results
             - seed (int): the random seed to be used for the entire experiment for each model training
-            - project (str): the name of the project, passed to Weights and Biases (wandb)
+            - use_wandb (bool): whether to log results using the Weights and Biases logger
+            - project (Optional[str]): the name of the project, passed to wandb if used
             - n_in (int): number of time steps that are given to the models
             - n_out (int): (if forecasting is involved) number of future time steps models predicted by the model
             - trainer (ConfigDict): the items are passed to <pl.Trainer>
@@ -78,7 +76,7 @@ def run_experiment(cfg: ConfigDict):
                     - metrics (): TODO
                 - list (list[ConfigDict]): each element has the following keys:
                     - task (str): the name of the task to be evaluated
-                    -
+                    - freeze_featurizer (bool, default=False):
             - dataloader (ConfigDict): passed to the constructor of dataloaders
             - early_stopping (ConfigDict):
             - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
@@ -88,8 +86,7 @@ def run_experiment(cfg: ConfigDict):
 
     datasets = make_datasets(cfg.tasks.common.get('datasets', {}), cfg.n_in, cfg.n_out)
 
-    for model_name, model_args in cfg.models:
-        Model = model_registry[model_name]
+    for Model, model_args in cfg.models:
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
             task_datasets = datasets.copy()
