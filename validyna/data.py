@@ -148,7 +148,6 @@ def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.o
 class ChunkMultiTaskDataset:
 
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
-        self.trajectories_per_sys = trajectories_per_sys
         self.classes = {name: class_n for class_n, name in enumerate(sorted(trajectories_per_sys.keys()))}
         self.n_classes = len(self.classes)
         self.n_in = n_in
@@ -158,7 +157,7 @@ class ChunkMultiTaskDataset:
         X_out = []
         X_class = []
         for name, class_n in self.classes.items():
-            trajectories = self.trajectories_per_sys[name]
+            trajectories = trajectories_per_sys[name]
             slices = build_slices(trajectories, n=n_in + n_out)
             X_in.append(slices[:, :n_in, :])
             X_out.append(slices[:, -n_out:, :])

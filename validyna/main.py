@@ -78,6 +78,7 @@ def run_experiment(cfg: ConfigDict):
                     - task (str): the name of the task to be evaluated
                     - freeze_featurizer (bool, default=False):
             - dataloader (ConfigDict): passed to the constructor of dataloaders
+            - normalize_data (bool, default=False): whether to use the training set's mean and std to normalize all sets
             - early_stopping (ConfigDict):
             - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
     """
