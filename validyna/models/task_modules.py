@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from ml_collections import ConfigDict
-from torch.optim import AdamW
+import torch.optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, Dataset
 
@@ -19,12 +19,14 @@ class ChunkModule(pl.LightningModule, ABC):
         self.model = model
         self.loss_name = loss_name
         self.cfg = cfg
+        data_params = dict()
+        if cfg.get('normalize_data', False):
+            data_params = dict(mean=datasets['train'].mean, std=datasets['train'].std)
         self.dataloaders = {
-            name: DataLoader(self._transform_data(dataset, mean=datasets['train'].mean, std=datasets['train'].std),
-                             shuffle=True, **cfg.dataloader)
+            name: DataLoader(self._transform_data(dataset, **data_params), shuffle=True, **cfg.dataloader)
             for name, dataset in datasets.items()
         }
-
+        self.dataloader_names = ['val'] + [n for n in self.dataloaders.keys() if n not in ['train', 'val']]
         self.save_hyperparameters(ignore=['model', 'datasets'])
 
     @abstractmethod
@@ -35,17 +37,21 @@ class ChunkModule(pl.LightningModule, ABC):
         return self.dataloaders['train']
 
     def val_dataloader(self):
-        return [self.dataloaders['val'], self.dataloaders['test']]
+        return [self.dataloaders[name] for name in self.dataloader_names]
 
     def _val_dataloader_name(self, dataloader_idx):
-        return ['val', 'test'][dataloader_idx]
+        return self.dataloader_names[dataloader_idx]
 
     def configure_optimizers(self):
-        optimizers = [AdamW(self.parameters(), **self.cfg.optimizer)]
-        schedulers = [{
-            'scheduler': ReduceLROnPlateau(optimizers[0], **self.cfg.lr_scheduler, verbose=True),
-            'monitor': f'{self.loss_name}.val',
-        }]
+        Optim, optim_params = self.cfg.optimizer
+        optimizers = [Optim(self.parameters(), **optim_params)]
+        schedulers = []
+        if 'lr_scheduler' in self.cfg:
+            Scheduler, scheduler_params = self.cfg.lr_scheduler
+            schedulers.append({
+                'scheduler': Scheduler(optimizers[0], **scheduler_params),
+                'monitor': f'{self.loss_name}.val',
+            })
         return optimizers, schedulers
 
 

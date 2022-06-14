@@ -134,6 +134,11 @@ def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> 
     return TensorDataset(X, y)
 
 
+def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)) -> Tensor:
+    std[std == 0] = 1
+    return (data - mean) / std
+
+
 class ChunkMultiTaskDataset:
 
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
@@ -163,20 +168,20 @@ class ChunkMultiTaskDataset:
 
         self.space_dim = self.X_in.size(2)
 
-    def for_classification(self, mean: Tensor = 0, std: Tensor = 1):
-        return TensorDataset((self.X_in - mean) / std, self.X_class)
+    def for_classification(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
+        return TensorDataset(normalize(self.X_in, mean, std), self.X_class)
 
-    def for_featurization(self, mean: Tensor = 0, std: Tensor = 1):
+    def for_featurization(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
         chunks_per_sys = dict()
         for name, class_n in self.classes.items():
-            chunks_per_sys[name] = ((self.X_in - mean) / std)[self.X_class == class_n]
+            chunks_per_sys[name] = normalize(self.X_in, mean, std)[self.X_class == class_n]
         return TripletDataset(chunks_per_sys)
 
-    def for_forecasting(self, mean: Tensor = 0, std: Tensor = 1):
-        return TensorDataset((self.X_in - mean) / std, (self.X_out - mean) / std)
+    def for_forecasting(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
+        return TensorDataset(normalize(self.X_in, mean, std), normalize(self.X_out, mean, std))
 
-    def for_all(self, mean: Tensor = 0, std: Tensor = 1):
-        return TensorDataset((self.X_in - mean) / std, self.X_class, (self.X_out - mean) / std)
+    def for_all(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
+        return TensorDataset(normalize(self.X_in, mean, std), self.X_class, normalize(self.X_out, mean, std))
 
 
 class TripletDataset(Dataset):

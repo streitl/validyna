@@ -1,11 +1,11 @@
 import os
+from copy import deepcopy, copy
 from typing import Optional
 
 import pytorch_lightning as pl
 from absl import app
 from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
-from pytorch_lightning.loggers import WandbLogger
 
 from validyna.data import ChunkMultiTaskDataset, load_data_dictionary
 from validyna.models import multitask_models as mm
@@ -21,59 +21,84 @@ def train_model_for_task(
         cfg: ConfigDict,
         run_suffix: Optional[str] = None
 ):
-    if run_suffix is None:
-        run_name = f'{model.name()}_{task}'
-    else:
-        run_name = f'{model.name()}_{run_suffix}'
-    wandb = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
-    wandb._id = f'{run_name}_{wandb.experiment.id}'
+    """
+    TODO
+    Args:
+        - model (str):
+        - task (str):
+        - datasets (dict[str, ChunkMultiTaskDataset):
+        - cfg (ConfigDict): as specified in `run_experiment`, using only the keys
+            - seed
+            - use_wandb
+            - trainer
+            - early_stopping
+        - run_suffix (str)
+    """
+    pl.seed_everything(cfg.seed, workers=True)
+    run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
+    trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
+    if cfg.get('use_wandb', False):
+        from pytorch_lightning.loggers import WandbLogger
+        wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
+        trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
-    trainer = pl.Trainer(logger=wandb,
-                         callbacks=[EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping),
-                                    LearningRateMonitor(logging_interval='epoch')],
-                         **cfg.trainer)
+    trainer_callbacks = deepcopy(cfg.trainer.get('callbacks', []))
+    trainer_callbacks += [LearningRateMonitor(logging_interval='epoch')]
+    if 'early_stopping' in cfg:
+        trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping)]
+    trainer = pl.Trainer(callbacks=trainer_callbacks, **trainer_kwargs)
     trainer.fit(module)
-    wandb.experiment.finish(quiet=True)
+    if cfg.get('use_wandb', False):
+        trainer_kwargs['logger'].experiment.finish(quiet=True)
+
+
+def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
+    return {name: ChunkMultiTaskDataset(load_data_dictionary(dir_path=path), n_in, n_out)
+            for name, path in paths.items()}
 
 
 def run_experiment(cfg: ConfigDict):
     """
     Args:
-        - project (str): the name of the project, passed to Weights and Biases (wandb)
-        - task (str): the training task (name registered in {registry.model_registry})
-        - pre_task (Optional[str]): a pre-training task (name registered in {registry.model_registry})
-        - seed (int): the random seed to be used for the entire experiment
-        - n_in (int): number of time steps that are given to the models
-        - n_out (int): (if forecasting is involved) number of future time steps models predicted by the model
-        - trainer (ConfigDict): the args are passed to <pl.Trainer>
-        - data (ConfigDict):
-            -
-        - datasets (ConfigDict):
-            - train: (dict[attractor_name, torch.Tensor])
-            - val: (dict[attractor_name, torch.Tensor])
-            - test: (dict[attractor_name, torch.Tensor])
-        - models (dict[model_class_name, dict]): TODO
-        - metrics (list): TODO
+        -cfg (ConfigDict): a configuration dictionary with the following keys:
+            - results_dir (str): the path of the directory to save the results
+            - seed (int): the random seed to be used for the entire experiment for each model training
+            - project (str): the name of the project, passed to Weights and Biases (wandb)
+            - n_in (int): number of time steps that are given to the models
+            - n_out (int): (if forecasting is involved) number of future time steps models predicted by the model
+            - trainer (ConfigDict): the items are passed to <pl.Trainer>
+            - models (list[Tuple[str, dict]]): tuples where the first is a model name registered in the model registry,
+             and the second is a dictionary with the parameters to be passed to the model
+            - tasks (ConfigDict):
+                - common (ConfigDict):
+                    - datasets (Optional[ConfigDict]): has at least the following keys:
+                        - train (str): the path to data used to optimize the model
+                        - val (str): the path to data used for early stopping and learning rate adjustment
+                    other keys will be treated as test sets and metrics will be reported as such
+                    - metrics (): TODO
+                - list (list[ConfigDict]): each element has the following keys:
+                    - task (str): the name of the task to be evaluated
+                    -
+            - dataloader (ConfigDict): passed to the constructor of dataloaders
+            - early_stopping (ConfigDict):
+            - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
     """
-    if 'pre_task' in cfg and cfg.pre_task == cfg.task:
-        raise ValueError(f'The pre-training and training tasks are identical ({cfg.task})')
-
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(os.path.dirname(cfg.results_dir), exist_ok=True)
 
-    data = {name: load_data_dictionary(dir_path=path) for name, path in cfg.datasets.items()}
-    datasets = {name: ChunkMultiTaskDataset(tensor_dict, cfg.n_in, cfg.n_out) for name, tensor_dict in data.items()}
+    datasets = make_datasets(cfg.tasks.common.get('datasets', {}), cfg.n_in, cfg.n_out)
 
     for model_name, model_args in cfg.models.items():
-        pl.seed_everything(cfg.seed, workers=True)
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
-        run_suffix = None
-        if 'pre_task' in cfg:
-            train_model_for_task(model, cfg.pre_task, datasets, cfg)
-            model.freeze_featurizer()
-            run_suffix = f'{cfg.pre_task}_{cfg.task}'
-        train_model_for_task(model, cfg.task, datasets, cfg, run_suffix=run_suffix)
+        for task_cfg in cfg.tasks.list:
+            task_datasets = {**datasets}
+            task_datasets.update(make_datasets(task_cfg.get('datasets', {}), cfg.n_in, cfg.n_out))
+
+            train_model_for_task(model, task_cfg.task, task_datasets, cfg)
+
+            if task_cfg.get('freeze_featurizer', False):
+                model.freeze_featurizer()
 
 
 def main(_argv):
