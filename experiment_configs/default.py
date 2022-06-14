@@ -13,8 +13,8 @@ def get_config():
 
     cfg.project = placeholder(str)
 
-    cfg.n_in = 50
-    cfg.n_out = 50
+    cfg.n_in = 5
+    cfg.n_out = 5
     cfg.n_features = 32
 
     cfg.space_dim = 3
@@ -46,7 +46,7 @@ def get_config():
     cfg.early_stopping = ConfigDict({'patience': 3, 'check_on_train_epoch_end': True})
     cfg.optimizer = (AdamW, {'lr': 0.01})
     cfg.lr_scheduler = (ReduceLROnPlateau, {'patience': 1, 'factor': 0.2})
-    cfg.normalize_data = True
+    cfg.normalize_data = False
     cfg.dataloader = ConfigDict({
         'batch_size': 1024,
         'num_workers': 4,
