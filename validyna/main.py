@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from absl import app
 from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
+from pytorch_lightning.loggers import WandbLogger
 
 from validyna.data import ChunkMultiTaskDataset, make_datasets
 from validyna.models import multitask_models as mm
@@ -39,7 +40,6 @@ def train_model_for_task(
     pl.seed_everything(cfg.seed, workers=True)
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
     if cfg.get('use_wandb', False):
-        from pytorch_lightning.loggers import WandbLogger
         run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
         trainer_kwargs['logger'] = wandb_logger
