@@ -8,7 +8,7 @@ from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 
-from validyna.data import ChunkMultiTaskDataset, make_datasets
+from validyna.data import ChunkMultiTaskDataset
 from validyna.models import multitask_models as mm
 from validyna.registry import task_registry
 
@@ -70,8 +70,8 @@ def run_experiment(cfg: ConfigDict):
             - tasks (ConfigDict):
                 - common (ConfigDict):
                     - datasets (Optional[ConfigDict]): has at least the following keys:
-                        - train (str): the path to data used to optimize the model
-                        - val (str): the path to data used for early stopping and learning rate adjustment
+                        - train (dict[str, ChunkMultiTaskDataset]): data used to optimize the model
+                        - val (dict[str, ChunkMultiTaskDataset]): data used for early stopping, learning rate adjustment
                     other keys will be treated as test sets and metrics will be reported as such
                     - metrics (): TODO
                 - list (list[ConfigDict]): each element has the following keys:
@@ -85,13 +85,13 @@ def run_experiment(cfg: ConfigDict):
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(os.path.dirname(cfg.results_dir), exist_ok=True)
 
-    datasets = make_datasets(cfg.tasks.common.get('datasets', {}), cfg.n_in, cfg.n_out)
+    datasets = cfg.tasks.common.get('datasets', {})
 
     for Model, model_args in cfg.models:
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
             task_datasets = datasets.copy()
-            task_datasets.update(make_datasets(task_cfg.get('datasets', {}), cfg.n_in, cfg.n_out))
+            task_datasets.update(task_cfg.get('datasets', {}))
 
             train_model_for_task(model, task_cfg.task, task_datasets, cfg, run_suffix=task_cfg.get('run'))
 

@@ -3,6 +3,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from config import ROOT_DIR
+from validyna.data import make_datasets
 from validyna.models.multitask_models import MultiNBEATS, MultiTransformer, MultiGRU, MultiLSTM
 
 
@@ -22,15 +23,15 @@ def get_config():
     cfg.use_wandb = True
     cfg.results_dir = f'{ROOT_DIR}/results'
 
-    data_dir = f'{ROOT_DIR}/data/default(length=1000-pts_per_period=100-resample=True-seed=2022)'
+    data_dir = f'{ROOT_DIR}/data/default(length=200-pts_per_period=50-resample=True-seed=2022)'
     cfg.tasks = ConfigDict({
         'list': [],
         'common': ConfigDict({
-            'datasets': {
+            'datasets': make_datasets({
                 'train': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1)',
                 'val': f'{data_dir}/val(count=20-ic_noise=0.01-ic_scale=1)',
                 'test': f'{data_dir}/test(count=30-ic_noise=0.05-ic_scale=1.001)',
-            }
+            }, cfg.n_in, cfg.n_out)
         })
     })
     cfg.trainer = ConfigDict({

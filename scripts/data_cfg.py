@@ -10,9 +10,9 @@ def get_config():
     cfg.path = f'{ROOT_DIR}/data/default'
     cfg.data = ConfigDict()
     cfg.data.common = ConfigDict({
-        'length': 1000,
+        'length': 200,
         'resample': True,
-        'pts_per_period': 100,
+        'pts_per_period': 50,
         'seed': 2022,
         'verbose': True,
     })
