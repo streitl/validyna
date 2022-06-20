@@ -1,5 +1,5 @@
 import os
-from copy import deepcopy
+from copy import deepcopy, copy
 from typing import Optional
 
 import pytorch_lightning as pl
@@ -90,7 +90,7 @@ def run_experiment(cfg: ConfigDict):
     for Model, model_args in cfg.models:
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
-            task_datasets = datasets.copy()
+            task_datasets = copy(datasets)
             task_datasets.update(task_cfg.get('datasets', {}))
 
             train_model_for_task(model, task_cfg.task, task_datasets, cfg, run_suffix=task_cfg.get('run'))
