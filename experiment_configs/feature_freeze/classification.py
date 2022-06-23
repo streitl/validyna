@@ -16,6 +16,5 @@ def get_config():
         }
     ]
     cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
-    cfg.trainer.limit_train_batches = 0.25
     cfg.project = 'feature-freeze'
     return cfg
