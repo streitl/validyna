@@ -39,6 +39,7 @@ def get_config():
         'deterministic': True,
         'val_check_interval': 5,
         'limit_val_batches': 1,
+        'limit_train_batches': 1.0,
         'log_every_n_steps': 1,
         'gpus': 1,
         'detect_anomaly': True,

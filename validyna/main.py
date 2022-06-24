@@ -83,7 +83,7 @@ def run_experiment(cfg: ConfigDict):
             - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
     """
     if not os.path.isdir(cfg.results_dir):
-        os.makedirs(os.path.dirname(cfg.results_dir), exist_ok=True)
+        os.makedirs(cfg.results_dir, exist_ok=True)
 
     datasets = cfg.tasks.common.get('datasets', {})
 
@@ -93,7 +93,9 @@ def run_experiment(cfg: ConfigDict):
             task_datasets = copy(datasets)
             task_datasets.update(task_cfg.get('datasets', {}))
 
-            train_model_for_task(model, task_cfg.task, task_datasets, cfg, run_suffix=task_cfg.get('run'))
+            train_model_for_task(model=model, task=task_cfg.task, datasets=task_datasets,
+                                 cfg=ConfigDict({k: v for k, v in cfg.items() if k != 'tasks'}),
+                                 run_suffix=task_cfg.get('run'))
 
             if task_cfg.get('freeze_featurizer', False):
                 model.freeze_featurizer()
