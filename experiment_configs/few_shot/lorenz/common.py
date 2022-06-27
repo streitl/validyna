@@ -1,6 +1,5 @@
 import torch
 from ml_collections import ConfigDict
-from ml_collections.config_dict import placeholder
 
 from config import ROOT_DIR
 from experiment_configs.default import get_config as default_config
@@ -29,12 +28,14 @@ def get_config():
                                                 n_out=cfg.n_out)
                 for set_name, data_dict in lorenz_datasets.items()
             },
+            'run': 'before',
         },
         {
             'datasets': lambda: {
                 set_name: ChunkMultiTaskDataset(data_dict, n_in=cfg.n_in, n_out=cfg.n_out)
                 for set_name, data_dict in lorenz_datasets.items()
             },
+            'run': 'after',
         }
     ]
     cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]

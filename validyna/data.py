@@ -196,7 +196,7 @@ class TripletDataset(Dataset):
     def __init__(self, chunks_per_sys: dict[str, Tensor]):
         assert len(chunks_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
         self.tensors = chunks_per_sys
-        self.classes = list(sorted(self.tensors.keys()))
+        self.classes = list(sorted([k for k, v in self.tensors.items() if v.size(0) != 0]))
         self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
 
     def __getitem__(self, index: int):
