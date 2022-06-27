@@ -18,6 +18,10 @@ class DatasetMetricLogger(pl.Callback, ABC):
         pass
 
 
+#class Probe(pl.Callback):
+#    def __init__(self, cls: Type[]):
+
+
 class ForecastMetricLogger(DatasetMetricLogger):
     def __init__(self, train_dataset: Dataset, val_dataset: Dataset):
         super().__init__(train_dataset, val_dataset)

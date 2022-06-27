@@ -39,18 +39,18 @@ def train_model_for_task(
     """
     pl.seed_everything(cfg.seed, workers=True)
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
-    if cfg.get('use_wandb', False):
+    if cfg.get('use_wandb', default=False):
         run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir)
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
-    trainer_callbacks = deepcopy(cfg.trainer.get('callbacks', []))
+    trainer_callbacks = deepcopy(cfg.trainer.get('callbacks', default=[]))
     trainer_callbacks += [LearningRateMonitor(logging_interval='epoch')]
     if 'early_stopping' in cfg:
         trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping)]
     trainer = pl.Trainer(callbacks=trainer_callbacks, **trainer_kwargs)
     trainer.fit(module)
-    if cfg.get('use_wandb', False):
+    if cfg.get('use_wandb', default=False):
         trainer_kwargs['logger'].experiment.finish(quiet=True)
 
 
@@ -85,19 +85,20 @@ def run_experiment(cfg: ConfigDict):
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(cfg.results_dir, exist_ok=True)
 
-    datasets = cfg.tasks.common.get('datasets', {})
+    datasets = cfg.tasks.common.get('datasets', default=lambda: {})()
+    task = cfg.tasks.common.get('task')
 
     for Model, model_args in cfg.models:
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
             task_datasets = copy(datasets)
-            task_datasets.update(task_cfg.get('datasets', {}))
+            task_datasets.update(task_cfg.get('datasets', default=lambda: {})())
 
-            train_model_for_task(model=model, task=task_cfg.task, datasets=task_datasets,
+            train_model_for_task(model=model, task=task or task_cfg.task, datasets=task_datasets,
                                  cfg=ConfigDict({k: v for k, v in cfg.items() if k != 'tasks'}),
                                  run_suffix=task_cfg.get('run'))
 
-            if task_cfg.get('freeze_featurizer', False):
+            if task_cfg.get('freeze_featurizer', default=False):
                 model.freeze_featurizer()
 
 

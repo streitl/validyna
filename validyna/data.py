@@ -158,6 +158,8 @@ class ChunkMultiTaskDataset:
         X_class = []
         for name, class_n in self.classes.items():
             trajectories = trajectories_per_sys[name]
+            if trajectories.size(0) == 0:
+                continue
             slices = build_slices(trajectories, n=n_in + n_out)
             X_in.append(slices[:, :n_in, :])
             X_out.append(slices[:, -n_out:, :])

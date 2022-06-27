@@ -19,10 +19,10 @@ class ChunkModule(pl.LightningModule, ABC):
         self.loss_name = loss_name
         self.cfg = cfg
         data_params = dict()
-        if cfg.get('normalize_data', False):
+        if cfg.get('normalize_data', default=False):
             data_params = dict(mean=datasets['train'].mean, std=datasets['train'].std)
         self.dataloaders = {
-            name: DataLoader(self._transform_data(dataset, **data_params), shuffle=True, **cfg.dataloader)
+            name: DataLoader(self._transform_data(dataset, **data_params), **cfg.dataloader)
             for name, dataset in datasets.items()
         }
         self.dataloader_names = ['val'] + [n for n in self.dataloaders.keys() if n not in ['train', 'val']]

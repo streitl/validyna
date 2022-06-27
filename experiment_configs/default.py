@@ -27,11 +27,12 @@ def get_config():
     cfg.tasks = ConfigDict({
         'list': [],
         'common': ConfigDict({
-            'datasets': make_datasets({
+            'datasets': lambda: make_datasets({
                 'train': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1)',
                 'val': f'{data_dir}/val(count=20-ic_noise=0.01-ic_scale=1)',
                 'test': f'{data_dir}/test(count=30-ic_noise=0.05-ic_scale=1.001)',
-            }, cfg.n_in, cfg.n_out)
+            }, cfg.n_in, cfg.n_out),
+            'task': placeholder(str),
         })
     })
     cfg.trainer = ConfigDict({
@@ -52,6 +53,7 @@ def get_config():
     cfg.dataloader = ConfigDict({
         'batch_size': 1024,
         'num_workers': 4,
+        'shuffle': True,
         'persistent_workers': True,
         'pin_memory': True,
     })
