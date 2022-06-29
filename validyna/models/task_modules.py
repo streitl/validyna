@@ -42,13 +42,15 @@ class ChunkModule(pl.LightningModule, ABC):
         return self.dataloader_names[dataloader_idx]
 
     def configure_optimizers(self):
-        Optim, optim_params = self.cfg.optimizer
+        optim_name, optim_params = self.cfg.optimizer
+        Optim = getattr(torch.optim, optim_name)
         optimizers = [Optim(self.parameters(), **optim_params)]
         schedulers = []
         if 'lr_scheduler' in self.cfg:
-            Scheduler, scheduler_params = self.cfg.lr_scheduler
+            scheduler_name, scheduler_params = self.cfg.lr_scheduler
+            LRScheduler = getattr(torch.optim.lr_scheduler, scheduler_name)
             schedulers.append({
-                'scheduler': Scheduler(optimizers[0], **scheduler_params),
+                'scheduler': LRScheduler(optimizers[0], **scheduler_params),
                 'monitor': f'{self.loss_name}.val',
             })
         return optimizers, schedulers

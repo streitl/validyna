@@ -1,10 +1,7 @@
 from ml_collections.config_dict import ConfigDict, placeholder
-from torch.optim import AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from config import ROOT_DIR
 from validyna.data import make_datasets
-from validyna.models.multitask_models import MultiNBEATS, MultiTransformer, MultiGRU, MultiLSTM
 
 
 def get_config():
@@ -47,8 +44,8 @@ def get_config():
         'fast_dev_run': False,
     })
     cfg.early_stopping = ConfigDict({'patience': 3, 'check_on_train_epoch_end': True})
-    cfg.optimizer = (AdamW, {'lr': 0.01})
-    cfg.lr_scheduler = (ReduceLROnPlateau, {'patience': 1, 'factor': 0.2})
+    cfg.optimizer = ('AdamW', {'lr': 0.01})
+    cfg.lr_scheduler = ('ReduceLROnPlateau', {'patience': 1, 'factor': 0.2})
     cfg.normalize_data = False
     cfg.dataloader = ConfigDict({
         'batch_size': 1024,
@@ -58,25 +55,25 @@ def get_config():
         'pin_memory': True,
     })
     cfg.models = [
-        (MultiNBEATS, {
+        ('N-BEATS', {
             'n_stacks': 4,
             'n_blocks': 4,
             'expansion_coefficient_dim': 4,
             'n_layers': 4,
             'layer_widths': 8,
         }),
-        (MultiTransformer, {
+        ('Transformer', {
             'd_model': 16,
             'nhead': 4,
             'dim_feedforward': 16,
             'num_encoder_layers': 4,
         }),
-        (MultiGRU, {
+        ('GRU', {
             'n_hidden': 30,
             'n_layers': 2,
             'dropout': 0.1,
         }),
-        (MultiLSTM, {
+        ('LSTM', {
             'n_hidden': 26,
             'n_layers': 2,
             'dropout': 0.1,

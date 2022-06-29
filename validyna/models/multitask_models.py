@@ -220,9 +220,9 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
     The name of the model for pretty-printing.
     """
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def name() -> str:
+    def name(cls) -> str:
         pass
 
 
@@ -453,8 +453,8 @@ class MultiNBEATS(MultiTaskTimeSeriesModel):
                    for module in [block.FC_stack, block.FC_forecast, block.FC_backcast, block.g_backcast]]
         return [param for module in modules for param in module.parameters()]
 
-    @staticmethod
-    def name() -> str:
+    @classmethod
+    def name(cls) -> str:
         return 'N-BEATS'
 
 
@@ -538,8 +538,8 @@ class MultiTransformer(MultiTaskTimeSeriesModel):
     def _get_featurizer_parameters(self):
         return self.transformer.encoder.parameters()
 
-    @staticmethod
-    def name() -> str:
+    @classmethod
+    def name(cls) -> str:
         return 'Transformer'
 
 

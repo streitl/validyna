@@ -26,7 +26,7 @@ def register_metric(name: str, metric: any):
 
 
 for Model in all_implementations:
-    register_model(Model.__name__, Model)
+    register_model(Model.name(), Model)
 
 register_task('classification', ChunkClassifier)
 register_task('featurization', ChunkTripletFeaturizer)
