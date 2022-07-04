@@ -42,7 +42,7 @@ def train_model_for_task(
     if cfg.get('use_wandb', default=False):
         run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir,
-                                   model=model, cfg=cfg)
+                                   config=dict(model=model.hyperparams, **cfg))
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
     trainer_callbacks = deepcopy(cfg.trainer.get('callbacks', default=[]))
