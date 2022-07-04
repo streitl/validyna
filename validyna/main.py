@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from validyna.data import ChunkMultiTaskDataset
 from validyna.models import multitask_models as mm
-from validyna.registry import task_registry
+from validyna.registry import task_registry, model_registry
 
 _CONFIG = config_flags.DEFINE_config_file('cfg')
 
@@ -90,7 +90,8 @@ def run_experiment(cfg: ConfigDict):
     task = cfg.tasks.common.get('task')
     run_suffix = cfg.tasks.common.get('run')
 
-    for Model, model_args in cfg.models:
+    for model_name, model_args in cfg.models:
+        Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for task_cfg in cfg.tasks.list:
             task_datasets = copy(datasets)
