@@ -59,13 +59,14 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
 
     for i in range(n_plots):
         ic = arrays[0][i, 0, :]
-        axes = subfigs[i].subplots(space_dim, 1)
-        subfigs[i].suptitle(f'x̅0={tuple(np.round(ic, 1))}')
+        subfig = subfigs[i] if n_plots > 1 else subfigs
+        axes = subfig.subplots(space_dim, 1)
+        subfig.suptitle(f'x̅0={tuple(np.round(ic, 1))}')
 
         for n, array in enumerate(arrays):
             for dim, axis in enumerate(axes):
                 axis.plot(array[i, :, dim], label=labels[n])
-                axis.set_ylabel(f'x{dim}')
+                axis.set_ylabel(f'x{dim}' if space_dim > 3 else ['x', 'y', 'z'][dim])
                 axis.set_ylim(mins[dim], maxs[dim])
                 axis.get_yaxis().set_label_coords(-0.03, 0.5)
                 if dim + 1 != space_dim:
