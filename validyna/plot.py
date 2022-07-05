@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 
 
-def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int):
+def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, **kwargs):
     if len(tensors) != len(labels):
         raise ValueError(
             f'Number of trajectories and of labels must be equal (got {len(tensors)} and {len(labels)})')
@@ -33,7 +33,7 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
         ax.set_zlim(z_min, z_max)
 
         for n, array in enumerate(arrays):
-            ax.plot3D(*array[i, :, :].T, label=labels[n])
+            ax.plot3D(*array[i, :, :].T, label=labels[n], **kwargs)
 
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center')
@@ -42,7 +42,7 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
     return fig
 
 
-def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int):
+def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, **kwargs):
     if len(tensors) != len(labels):
         raise ValueError(
             f'Number of trajectories and of labels must be equal (got {len(tensors)} and {len(labels)})')
@@ -60,17 +60,16 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int)
     for i in range(n_plots):
         ic = arrays[0][i, 0, :]
         subfig = subfigs[i] if n_plots > 1 else subfigs
-        axes = subfig.subplots(space_dim, 1)
-        subfig.suptitle(f'x̅0={tuple(np.round(ic, 1))}')
+        axes = subfig.subplots(space_dim, 1, sharex=True)
+        subfig.suptitle(f'x̅₀≈{tuple(np.round(ic, 1))}')
+        axes[-1].set_xlabel('time')
 
         for n, array in enumerate(arrays):
             for dim, axis in enumerate(axes):
-                axis.plot(array[i, :, dim], label=labels[n])
+                axis.plot(array[i, :, dim], label=labels[n], **kwargs)
                 axis.set_ylabel(f'x{dim}' if space_dim > 3 else ['x', 'y', 'z'][dim])
                 axis.set_ylim(mins[dim], maxs[dim])
                 axis.get_yaxis().set_label_coords(-0.03, 0.5)
-                if dim + 1 != space_dim:
-                    axis.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
 
     plt.legend()
     return fig
