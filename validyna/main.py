@@ -83,6 +83,7 @@ def run_experiment(cfg: ConfigDict):
             - early_stopping (ConfigDict):
             - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
     """
+    print('main start')
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(cfg.results_dir, exist_ok=True)
 

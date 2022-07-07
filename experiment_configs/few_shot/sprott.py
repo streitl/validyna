@@ -8,7 +8,7 @@ def get_config():
 
     cfg.project = 'few-shot-sprott'
 
-    placeholders['f_all'] = lambda a: a in [f'Sprott{letter}' for letter in ['A', 'B', 'C', 'D', 'E']]
+    placeholders['f_all'] = lambda a: a in {f'Sprott{letter}' for letter in ['A', 'B', 'C', 'D', 'E']}
     placeholders['f_excluded'] = lambda a: a == 'SprottE'
 
     return cfg

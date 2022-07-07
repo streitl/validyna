@@ -11,7 +11,7 @@ def get_config():
     placeholders = default_config('placeholders')
 
     cfg.tasks.common.run = placeholders['tasks-common-task']
-    del cfg.tasks.common.datasets
+    del cfg.tasks.common['datasets']
 
     data_dir = f'{ROOT_DIR}/data/default(length=200-pts_per_period=50-resample=True-seed=2022)'
     data_dirs = {
@@ -23,26 +23,24 @@ def get_config():
     placeholders['f_all'] = lambda a: True
     placeholders['f_excluded'] = lambda a: False
 
-    datasets = {set_name: {attractor: data
-                           for attractor, data in load_data_dictionary(path).items()
-                           if cfg.f_all(attractor)}
-                for set_name, path in data_dirs.items()}
+    def datasets():
+        return {set_name: load_data_dictionary(path, placeholders['f_all']) for set_name, path in data_dirs.items()}
 
     cfg.tasks.list = [
         {
             'datasets': lambda: {
-                set_name: ChunkMultiTaskDataset({attractor: (torch.empty(0) if cfg.f_excluded(attractor) else data)
-                                                 for attractor, data in data_dict.items()},
+                set_name: ChunkMultiTaskDataset({attr: (torch.empty(0) if placeholders['f_excluded'](attr) else data)
+                                                 for attr, data in data_dict.items()},
                                                 n_in=cfg.n_in,
                                                 n_out=cfg.n_out)
-                for set_name, data_dict in datasets.items()
+                for set_name, data_dict in datasets().items()
             },
             'run': 'before',
         },
         {
             'datasets': lambda: {
                 set_name: ChunkMultiTaskDataset(data_dict, n_in=cfg.n_in, n_out=cfg.n_out)
-                for set_name, data_dict in datasets.items()
+                for set_name, data_dict in datasets().items()
             },
             'run': 'after',
         }
