@@ -40,5 +40,5 @@ def get_config():
     ]
     cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
     cfg.trainer.val_check_interval = 1
-    cfg.trainer.limit_val_batches = 1.0
+    cfg.trainer.limit_val_batches = 5
     return cfg
