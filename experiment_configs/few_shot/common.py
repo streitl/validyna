@@ -20,8 +20,8 @@ def get_config():
         'test': f'{data_dir}/test(count=30-ic_noise=0.05-ic_scale=1.001)',
     }
 
-    cfg.f_all = lambda a: True
-    cfg.f_excluded = lambda a: False
+    placeholders['f_all'] = lambda a: True
+    placeholders['f_excluded'] = lambda a: False
 
     datasets = {set_name: {attractor: data
                            for attractor, data in load_data_dictionary(path).items()

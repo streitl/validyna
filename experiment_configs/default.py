@@ -48,7 +48,7 @@ def get_config(which: Optional[str] = None) -> Union[ConfigDict, dict]:
         'max_epochs': 100,
         'deterministic': True,
         'val_check_interval': 5,
-        'limit_val_batches': 1.0,
+        'limit_val_batches': 0.05,
         'limit_train_batches': 1.0,
         'log_every_n_steps': 1,
         'gpus': 1,
