@@ -30,6 +30,7 @@ def get_config():
                 'test': f'{data_dir}/test(count=30-ic_noise=0.05-ic_scale=1.001)',
             }, cfg.n_in, cfg.n_out),
             'task': placeholder(str),
+            'run': placeholder(str),
         })
     })
     cfg.trainer = ConfigDict({
