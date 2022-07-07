@@ -5,14 +5,14 @@ from ml_collections.config_dict import ConfigDict, placeholder
 from config import ROOT_DIR
 from validyna.data import make_datasets
 
+placeholders = {
+    'project': placeholder(str),
+    'tasks-common-task': placeholder(str),
+    'tasks-common-run': placeholder(str),
+}
+
 
 def get_config(which: Optional[str] = None) -> Union[ConfigDict, dict]:
-
-    placeholders = {
-        'project': placeholder(str),
-        'tasks-common-task': placeholder(str),
-        'tasks-common-run': placeholder(str),
-    }
 
     if which == 'placeholders':
         return placeholders

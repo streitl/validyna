@@ -100,7 +100,7 @@ def run_experiment(cfg: ConfigDict):
             train_model_for_task(model=model, task=task or task_cfg.task, datasets=task_datasets,
                                  cfg=ConfigDict({k: v for k, v in cfg.items() if k != 'tasks'}),
                                  run_suffix=f'{run_suffix}_{task_cfg.run}'
-                                            if (run_suffix and task_cfg.get('run')) is not None
+                                            if (run_suffix and task_cfg.get('run'))
                                             else run_suffix or task_cfg.get('run'))
 
             if task_cfg.get('freeze_featurizer', default=False):
