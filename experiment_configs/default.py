@@ -1,15 +1,26 @@
+from typing import Optional, Union
+
 from ml_collections.config_dict import ConfigDict, placeholder
 
 from config import ROOT_DIR
 from validyna.data import make_datasets
 
 
-def get_config():
+def get_config(which: Optional[str] = None) -> Union[ConfigDict, dict]:
+
+    placeholders = {
+        'project': placeholder(str),
+        'tasks-common-task': placeholder(str),
+        'tasks-common-run': placeholder(str),
+    }
+
+    if which == 'placeholders':
+        return placeholders
+
     cfg = ConfigDict()
 
     cfg.seed = 2022
-
-    cfg.project = placeholder(str)
+    cfg.project = placeholders['project']
 
     cfg.n_in = 5
     cfg.n_out = 5
@@ -29,21 +40,21 @@ def get_config():
                 'val': f'{data_dir}/val(count=20-ic_noise=0.01-ic_scale=1)',
                 'test': f'{data_dir}/test(count=30-ic_noise=0.05-ic_scale=1.001)',
             }, cfg.n_in, cfg.n_out),
-            'task': placeholder(str),
-            'run': placeholder(str),
+            'task': placeholders['tasks-common-task'],
+            'run': placeholders['tasks-common-run'],
         })
     })
     cfg.trainer = ConfigDict({
         'max_epochs': 100,
         'deterministic': True,
         'val_check_interval': 5,
-        'limit_val_batches': 1,
+        'limit_val_batches': 1.0,
         'limit_train_batches': 1.0,
         'log_every_n_steps': 1,
         'gpus': 1,
         'detect_anomaly': True,
         'fast_dev_run': False,
-    })
+    }, type_safe=False)
     cfg.early_stopping = ConfigDict({'patience': 3, 'check_on_train_epoch_end': True})
     cfg.optimizer = ('AdamW', {'lr': 0.01})
     cfg.lr_scheduler = ('ReduceLROnPlateau', {'patience': 1, 'factor': 0.2})
@@ -54,7 +65,7 @@ def get_config():
         'shuffle': True,
         'persistent_workers': True,
         'pin_memory': True,
-    })
+    }, type_safe=False)
     cfg.models = [
         ('N-BEATS', {
             'n_stacks': 4,

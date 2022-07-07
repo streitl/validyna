@@ -4,7 +4,8 @@ from experiment_configs.default import get_config as default_config
 
 
 def get_config():
-    cfg = default_config()
+    cfg, = default_config()
+    cfg.project = 'feature-freeze'
     cfg.tasks.list = [
         {
             'task': 'featurization',
@@ -20,5 +21,4 @@ def get_config():
         }
     ]
     cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
-    cfg.project = 'feature-freeze'
     return cfg
