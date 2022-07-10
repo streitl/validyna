@@ -71,7 +71,7 @@ class ClassSensitivitySpecificity(ClassMetricLogger):
         target = x_class == self.class_index
         pred = pred == self.class_index
         # Get confusion matrix metrics
-        tn, fp, fn, tp = confusion_matrix(y_true=target, y_pred=pred).ravel()
+        tn, fp, fn, tp = confusion_matrix(y_true=target.to('cpu'), y_pred=pred.to('cpu')).ravel()
         return {f'{self.class_of_interest}.sensitivity': tp / (tp + fn),
                 f'{self.class_of_interest}.specificity': tn / (tn + fp)}
 
