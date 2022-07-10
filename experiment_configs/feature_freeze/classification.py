@@ -16,5 +16,4 @@ def get_config():
             'run_suffix': 'classification>forecasting'
         }
     ]))
-    cfg.runs = [ConfigDict(d) for d in cfg.runs]
     return cfg
