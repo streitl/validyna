@@ -9,6 +9,7 @@ def get_config():
     cfg.project = 'few-shot-sprott'
 
     placeholders['f_all'] = lambda a: a in {f'Sprott{letter}' for letter in ['A', 'B', 'C', 'D', 'E']}
-    placeholders['f_excluded'] = lambda a: a == 'SprottE'
+    cfg.runs = cfg.runs[1:]
+    del cfg.runs[0]['run_suffix']
 
     return cfg
