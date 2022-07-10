@@ -90,11 +90,11 @@ class ChunkClassifier(ChunkModule):
         return self.model(x, kind='classify')
 
     def get_metrics(self, batch, set_name=None):
-        x, y = batch
-        out = self(x)
-        loss = F.cross_entropy(out, y)
+        x_in, x_out, x_class = batch
+        out = self(x_in)
+        loss = F.cross_entropy(out, x_class)
         preds = torch.argmax(F.log_softmax(out, dim=1), dim=1)
-        acc = (y == preds).float().mean()
+        acc = (x_class == preds).float().mean()
         return {'loss': loss, 'acc': acc}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
