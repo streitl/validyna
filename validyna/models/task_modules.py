@@ -118,7 +118,7 @@ class ChunkTripletFeaturizer(ChunkModule):
         x_in, x_out, x_class = batch
         a = x_in
         p, n = self.datasets[set_name].get_positive_negative_batch(x_class)
-        loss = F.triplet_margin_loss(self(a), self(p), self(n))
+        loss = F.triplet_margin_loss(self(a), self(p.to(self.device)), self(n.to(self.device)))
         return {'loss': loss}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
