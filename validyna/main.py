@@ -97,10 +97,10 @@ def run_experiment(cfg: ConfigDict):
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
         for run_cfg in cfg.runs:
-            task_datasets = {**datasets}
-            task_datasets.update(run_cfg.get('datasets', default=lambda: {})())
+            run_datasets = {**datasets}
+            run_datasets.update(run_cfg.get('datasets', default=lambda: {})())
 
-            run_model_training(model=model, datasets=task_datasets, run_cfg=run_cfg,
+            run_model_training(model=model, datasets=run_datasets, run_cfg=run_cfg,
                                cfg=ConfigDict({k: v for k, v in cfg.items() if k not in ['datasets', 'runs']}))
 
             if run_cfg.get('freeze_featurizer', default=False):

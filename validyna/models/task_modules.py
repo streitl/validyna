@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torch.optim
 from ml_collections import ConfigDict
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from validyna.data import ChunkMultiTaskDataset
 from validyna.models.multitask_models import MultiTaskTimeSeriesModel
@@ -22,15 +23,11 @@ class ChunkModule(pl.LightningModule, ABC):
             for dataset in self.datasets.values():
                 dataset.normalize(train_mean, train_std)
         self.dataloaders = {
-            name: DataLoader(self._transform_data(dataset), **cfg.dataloader)
+            name: DataLoader(dataset.tensor_dataset(), **cfg.dataloader)
             for name, dataset in datasets.items()
         }
         self.val_dataloader_names = ['val'] + [n for n in self.dataloaders.keys() if n not in ['train', 'val']]
         self.save_hyperparameters(ignore=['model', 'datasets'])
-
-    @abstractmethod
-    def _transform_data(self, dataset: ChunkMultiTaskDataset):
-        pass
 
     @abstractmethod
     def loss_name(self) -> str:
@@ -60,7 +57,7 @@ class ChunkModule(pl.LightningModule, ABC):
         return optimizers, schedulers
 
     @abstractmethod
-    def get_metrics(self, batch) -> dict[str, float]:
+    def get_metrics(self, batch, set_name: Optional[str] = None) -> dict[str, float]:
         pass
 
     def log_metrics(self, metrics: dict[str, float], set_name: str) -> None:
@@ -70,12 +67,14 @@ class ChunkModule(pl.LightningModule, ABC):
             self.log(f'{name}.{set_name}', value, add_dataloader_idx=False)
 
     def training_step(self, batch, batch_idx=0):
-        metrics = self.get_metrics(batch)
-        self.log_metrics(metrics, set_name='train')
+        set_name = 'train'
+        metrics = self.get_metrics(batch, set_name)
+        self.log_metrics(metrics, set_name)
         return metrics
 
     def validation_step(self, batch, batch_idx=0, dataloader_idx=0):
-        self.log_metrics(self.get_metrics(batch), set_name=self.val_dataloader_name(dataloader_idx))
+        set_name = self.val_dataloader_name(dataloader_idx)
+        self.log_metrics(self.get_metrics(batch, set_name), set_name)
 
 
 class ChunkClassifier(ChunkModule):
@@ -87,13 +86,10 @@ class ChunkClassifier(ChunkModule):
     def loss_name(self) -> str:
         return 'loss.cross'
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_classification()
-
     def forward(self, x):
         return self.model(x, kind='classify')
 
-    def get_metrics(self, batch):
+    def get_metrics(self, batch, set_name=None):
         x, y = batch
         out = self(x)
         loss = F.cross_entropy(out, y)
@@ -102,7 +98,7 @@ class ChunkClassifier(ChunkModule):
         return {'loss': loss, 'acc': acc}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
-        x, _ = batch
+        x = batch[0]
         return torch.argmax(F.log_softmax(self(x), dim=1), dim=1)
 
 
@@ -115,19 +111,18 @@ class ChunkTripletFeaturizer(ChunkModule):
     def loss_name(self) -> str:
         return 'loss.triplet'
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_featurization()
-
     def forward(self, x):
         return self.model(x, kind='featurize')
 
-    def get_metrics(self, batch):
-        a, p, n = batch
+    def get_metrics(self, batch, set_name: str):
+        x_in, x_out, x_class = batch
+        a = x_in
+        p, n = self.datasets[set_name].get_positive_negative_batch(x_class)
         loss = F.triplet_margin_loss(self(a), self(p), self(n))
         return {'loss': loss}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
-        (x,) = batch
+        x = batch[0]
         return self(x)
 
 
@@ -140,18 +135,15 @@ class ChunkForecaster(ChunkModule):
     def loss_name(self) -> str:
         return 'loss.mse'
 
-    def _transform_data(self, dataset: ChunkMultiTaskDataset) -> Dataset:
-        return dataset.for_forecasting()
-
     def forward(self, x):
         return self.model(x, kind='forecast')
 
-    def get_metrics(self, batch):
-        x, y = batch
-        loss = F.mse_loss(self(x), y)
+    def get_metrics(self, batch, set_name=None):
+        x_in, x_out, x_class = batch
+        loss = F.mse_loss(self(x_in), x_out)
         return {'loss': loss}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
-        (tensor,) = batch
+        tensor = batch[0]
         x = tensor[:, :self.model.n_in, :]
         return self.model.forecast_in_chunks(x, n=tensor.size(1) - self.model.n_in)

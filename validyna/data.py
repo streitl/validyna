@@ -149,19 +149,23 @@ def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.o
 class ChunkMultiTaskDataset:
 
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
-        self.classes = {name: class_n for class_n, name in enumerate(sorted(trajectories_per_sys.keys()))}
+        empty_classes = [k for k, v in trajectories_per_sys.items() if v.size(0) == 0]
+        self.classes = [c for c in sorted(trajectories_per_sys.keys()) if c not in empty_classes] + list(
+            sorted(empty_classes))
         self.n_classes = len(self.classes)
+        self.n_non_empty_classes = self.n_classes - len(empty_classes)
         self.n_in = n_in
         self.n_out = n_out
 
         X_in = []
         X_out = []
         X_class = []
-        for name, class_n in self.classes.items():
+        for class_n, name in enumerate(self.classes):
             trajectories = trajectories_per_sys[name]
             if trajectories.size(0) == 0:
                 continue
             slices = build_slices(trajectories, n=n_in + n_out)
+            self.class_sizes = slices.size(0)
             X_in.append(slices[:, :n_in, :])
             X_out.append(slices[:, -n_out:, :])
             X_class.append(torch.full(size=(X_in[-1].size(0),), fill_value=class_n))
@@ -170,8 +174,8 @@ class ChunkMultiTaskDataset:
         self.X_out = torch.concat(X_out, dim=0)
         self.X_class = torch.concat(X_class, dim=0)
 
-        self.chunks_per_sys = dict()
-        for name, class_n in self.classes.items():
+        self.chunks_per_sys: dict[str, Tensor] = dict()
+        for class_n, name in enumerate(self.classes):
             self.chunks_per_sys[name] = self.X_in[self.X_class == class_n]
 
         X = torch.concat((self.X_in, self.X_out), dim=1)
@@ -187,43 +191,17 @@ class ChunkMultiTaskDataset:
         else:
             self.X_in = normalize(self.X_in, mean, std)
             self.X_out = normalize(self.X_out, mean, std)
+            for name in self.classes:
+                self.chunks_per_sys[name] = normalize(self.chunks_per_sys[name], mean, std)
             self.normalized = True
 
-    def for_classification(self):
-        return TensorDataset(self.X_in, self.X_class)
+    def get_positive_negative_batch(self, anchor_classes: Tensor) -> Tuple[Tensor, Tensor]:
+        # Get batch of random negative classes different to the anchor ones
+        other_classes = torch.randint_like(input=anchor_classes, high=self.n_non_empty_classes - 1)
+        other_classes[other_classes >= anchor_classes] += 1
+        positive = self.X_in[anchor_classes * self.class_sizes + torch.randint_like(anchor_classes, self.class_sizes)]
+        negative = self.X_in[other_classes * self.class_sizes + torch.randint_like(anchor_classes, self.class_sizes)]
+        return positive, negative
 
-    def for_featurization(self):
-        return TripletDataset(self.chunks_per_sys)
-
-    def for_forecasting(self):
-        return TensorDataset(self.X_in, self.X_out)
-
-    def for_all(self):
+    def tensor_dataset(self) -> Dataset:
         return TensorDataset(self.X_in, self.X_out, self.X_class)
-
-
-class TripletDataset(Dataset):
-
-    def __init__(self, chunks_per_sys: dict[str, Tensor]):
-        assert len(chunks_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
-        self.tensors = chunks_per_sys
-        self.classes = list(sorted(k for k, v in self.tensors.items() if v.size(0) != 0))
-        self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
-
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
-        # Anchor class is sampled uniformly TODO this could be a problem for unbalanced datasets
-        anchor_class = self.classes[random.randint(0, len(self.classes) - 1)]
-        # Negative class sampled randomly from other classes
-        negative_class = [c for c in self.classes if c != anchor_class][random.randint(0, len(self.classes) - 2)]
-        # Anchor and positive points are sampled randomly (could be the same)
-        anchor_idx = random.randint(0, self.class_sizes[anchor_class] - 1)
-        positive_idx = random.randint(0, self.class_sizes[anchor_class] - 1)
-        negative_idx = random.randint(0, self.class_sizes[negative_class] - 1)
-        anchor = self.tensors[anchor_class][anchor_idx]
-        positive = self.tensors[anchor_class][positive_idx]
-        negative = self.tensors[negative_class][negative_idx]
-        return anchor, positive, negative
-
-    def __len__(self):
-        # TODO check if this makes any sense
-        return sum(self.class_sizes.values())
