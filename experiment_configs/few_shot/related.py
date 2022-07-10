@@ -6,10 +6,10 @@ def get_config():
     cfg = common_config()
     placeholders = default_config('placeholders')
 
-    cfg.project = 'few-shot-random'
+    cfg.project = 'few-shot-sprott'
 
-    placeholders['f_all'] = lambda a: a in ['SprottE', 'Arneodo', 'Lorenz', 'Sakarya', 'NuclearQuadrupole']
+    placeholders['f_all'] = lambda a: a in {f'Sprott{letter}' for letter in ['A', 'B', 'C', 'D', 'E']}
     cfg.runs = cfg.runs[1:]
-    del cfg.runs[0]['run_suffix']
+    cfg.runs[0]['run_suffix'] = 'related_lone'
 
     return cfg

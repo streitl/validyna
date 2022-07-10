@@ -6,9 +6,11 @@ def get_config():
     cfg = common_config()
     placeholders = default_config('placeholders')
 
-    cfg.project = 'few-shot-random'
+    cfg.project = 'few-shot-sprott'
 
-    placeholders['f_all'] = lambda a: a in ['SprottE', 'Arneodo', 'Lorenz', 'Sakarya', 'NuclearQuadrupole']
+    placeholders['f_all'] = lambda a: a in {f'Sprott{letter}' for letter in ['A', 'B', 'C', 'D', 'E']}
     placeholders['f_excluded'] = lambda a: a == 'SprottE'
+    for run_cfg in cfg.runs:
+        run_cfg['run_suffix'] = f'related_{run_cfg.run_suffix}'
 
     return cfg
