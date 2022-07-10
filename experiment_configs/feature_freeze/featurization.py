@@ -4,21 +4,20 @@ from experiment_configs.default import get_config as default_config
 
 
 def get_config():
-    cfg, = default_config()
+    cfg = default_config()
     cfg.project = 'feature-freeze'
-    cfg.tasks.list = [
+    cfg.runs = list(map(lambda d: ConfigDict(d), [
         {
             'task': 'featurization',
             'freeze_featurizer': True,
         },
         {
             'task': 'forecasting',
-            'run': 'featurization>forecasting',
+            'run_suffix': 'featurization>forecasting',
         },
         {
             'task': 'classification',
-            'run': 'featurization>classification',
+            'run_suffix': 'featurization>classification',
         }
-    ]
-    cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
+    ]))
     return cfg

@@ -10,8 +10,8 @@ def get_config():
     cfg = default_config()
     placeholders = default_config('placeholders')
 
-    cfg.tasks.common.run = placeholders['tasks-common-task']
-    del cfg.tasks.common['datasets']
+    cfg.run_suffix = placeholders['task']
+    del cfg['datasets']
 
     data_dir = f'{ROOT_DIR}/data/default(length=200-pts_per_period=50-resample=True-seed=2022)'
     data_dirs = {
@@ -26,7 +26,7 @@ def get_config():
     def datasets():
         return {set_name: load_data_dictionary(path, placeholders['f_all']) for set_name, path in data_dirs.items()}
 
-    cfg.tasks.list = [
+    cfg.runs = list(map(lambda d: ConfigDict(d), [
         {
             'datasets': lambda: {
                 set_name: ChunkMultiTaskDataset({attr: (torch.empty(0) if placeholders['f_excluded'](attr) else data)
@@ -35,15 +35,17 @@ def get_config():
                                                 n_out=cfg.n_out)
                 for set_name, data_dict in datasets().items()
             },
-            'run': 'before',
+            'run_suffix': 'before',
         },
         {
             'datasets': lambda: {
                 set_name: ChunkMultiTaskDataset(data_dict, n_in=cfg.n_in, n_out=cfg.n_out)
                 for set_name, data_dict in datasets().items()
             },
-            'run': 'after',
+            'run_suffix': 'after',
+            'trainer_callbacks': [('ClassSensitivitySpecificity', {'class_of_interest': 'SprottE'}, 'classification'),
+                                  ('ClassFeatureSTD', {'class_of_interest': 'SprottE'}, 'featurization'),
+                                  ('ClassMSE', {'class_of_interest': 'SprottE'}, 'forecasting')],
         }
-    ]
-    cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
+    ]))
     return cfg

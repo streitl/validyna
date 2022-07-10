@@ -2,7 +2,7 @@ import os
 import random
 import re
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Tuple
 
 import dysts.flows
 import numpy as np
@@ -170,26 +170,36 @@ class ChunkMultiTaskDataset:
         self.X_out = torch.concat(X_out, dim=0)
         self.X_class = torch.concat(X_class, dim=0)
 
+        self.chunks_per_sys = dict()
+        for name, class_n in self.classes.items():
+            self.chunks_per_sys[name] = self.X_in[self.X_class == class_n]
+
         X = torch.concat((self.X_in, self.X_out), dim=1)
         self.mean = X.mean(dim=[0, 1])
         self.std = X.std(dim=[0, 1])
 
         self.space_dim = self.X_in.size(2)
+        self.normalized = False
 
-    def for_classification(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
-        return TensorDataset(normalize(self.X_in, mean, std), self.X_class)
+    def normalize(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
+        if self.normalized:
+            print('Warning: the dataset is already normalized!')
+        else:
+            self.X_in = normalize(self.X_in, mean, std)
+            self.X_out = normalize(self.X_out, mean, std)
+            self.normalized = True
 
-    def for_featurization(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
-        chunks_per_sys = dict()
-        for name, class_n in self.classes.items():
-            chunks_per_sys[name] = normalize(self.X_in, mean, std)[self.X_class == class_n]
-        return TripletDataset(chunks_per_sys)
+    def for_classification(self):
+        return TensorDataset(self.X_in, self.X_class)
 
-    def for_forecasting(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
-        return TensorDataset(normalize(self.X_in, mean, std), normalize(self.X_out, mean, std))
+    def for_featurization(self):
+        return TripletDataset(self.chunks_per_sys)
 
-    def for_all(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
-        return TensorDataset(normalize(self.X_in, mean, std), self.X_class, normalize(self.X_out, mean, std))
+    def for_forecasting(self):
+        return TensorDataset(self.X_in, self.X_out)
+
+    def for_all(self):
+        return TensorDataset(self.X_in, self.X_out, self.X_class)
 
 
 class TripletDataset(Dataset):
@@ -197,10 +207,10 @@ class TripletDataset(Dataset):
     def __init__(self, chunks_per_sys: dict[str, Tensor]):
         assert len(chunks_per_sys.keys()) > 1, 'There must be more than 1 class in the given dataset'
         self.tensors = chunks_per_sys
-        self.classes = list(sorted([k for k, v in self.tensors.items() if v.size(0) != 0]))
+        self.classes = list(sorted(k for k, v in self.tensors.items() if v.size(0) != 0))
         self.class_sizes = {k: len(v) for k, v in self.tensors.items()}
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
         # Anchor class is sampled uniformly TODO this could be a problem for unbalanced datasets
         anchor_class = self.classes[random.randint(0, len(self.classes) - 1)]
         # Negative class sampled randomly from other classes

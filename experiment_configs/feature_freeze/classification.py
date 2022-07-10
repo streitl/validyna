@@ -6,15 +6,15 @@ from experiment_configs.default import get_config as default_config
 def get_config():
     cfg = default_config()
     cfg.project = 'feature-freeze'
-    cfg.tasks.list = [
+    cfg.runs = list(map(lambda d: ConfigDict(d), [
         {
             'task': 'classification',
             'freeze_featurizer': True,
         },
         {
             'task': 'forecasting',
-            'run': 'classification>forecasting'
+            'run_suffix': 'classification>forecasting'
         }
-    ]
-    cfg.tasks.list = [ConfigDict(d) for d in cfg.tasks.list]
+    ]))
+    cfg.runs = [ConfigDict(d) for d in cfg.runs]
     return cfg

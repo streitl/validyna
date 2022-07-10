@@ -1,5 +1,4 @@
 import os
-from copy import deepcopy, copy
 from typing import Optional
 
 import pytorch_lightning as pl
@@ -10,17 +9,16 @@ from pytorch_lightning.loggers import WandbLogger
 
 from validyna.data import ChunkMultiTaskDataset
 from validyna.models import multitask_models as mm
-from validyna.registry import task_registry, model_registry
+from validyna.registry import task_registry, model_registry, metric_registry
 
 _CONFIG = config_flags.DEFINE_config_file('cfg')
 
 
-def train_model_for_task(
+def run_model_training(
         model: mm.MultiTaskTimeSeriesModel,
-        task: str,
         datasets: dict[str, ChunkMultiTaskDataset],
         cfg: ConfigDict,
-        run_suffix: Optional[str] = None
+        run_cfg: Optional[ConfigDict] = None,
 ):
     """
     TODO
@@ -39,16 +37,22 @@ def train_model_for_task(
     """
     pl.seed_everything(cfg.seed, workers=True)
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
+    task = cfg.get('task') or run_cfg.task
     if cfg.get('use_wandb', default=False):
-        run_name = f'{model.name()}_{run_suffix if run_suffix is not None else task}'
+        run_suffix = f"{cfg.get('run_suffix')}_{run_cfg.get('run_suffix')}"\
+            if cfg.get('run_suffix') and run_cfg.get('run_suffix') \
+            else cfg.get('run_suffix') or run_cfg.get('run_suffix')
+        run_name = f'{model.name()}_{run_suffix or task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir,
                                    config=dict(model=model.hyperparams, **cfg))
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
-    trainer_callbacks = deepcopy(cfg.trainer.get('callbacks', default=[]))
+    trainer_callbacks = [metric_registry[name](**kwargs)
+                         for name, kwargs, t in cfg.trainer.get('callbacks', []) + run_cfg.get('trainer_callbacks', [])
+                         if t == task or t == 'all']
     trainer_callbacks += [LearningRateMonitor(logging_interval='epoch')]
     if 'early_stopping' in cfg:
-        trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name}.val', **cfg.early_stopping)]
+        trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name()}.val', **cfg.early_stopping)]
     trainer = pl.Trainer(callbacks=trainer_callbacks, **trainer_kwargs)
     trainer.fit(module)
     if cfg.get('use_wandb', default=False):
@@ -87,24 +91,19 @@ def run_experiment(cfg: ConfigDict):
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(cfg.results_dir, exist_ok=True)
 
-    datasets = cfg.tasks.common.get('datasets', default=lambda: {})()
-    task = cfg.tasks.common.get('task')
-    run_suffix = cfg.tasks.common.get('run')
+    datasets = cfg.get('datasets', default=lambda: {})()
 
     for model_name, model_args in cfg.models:
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
-        for task_cfg in cfg.tasks.list:
-            task_datasets = copy(datasets)
-            task_datasets.update(task_cfg.get('datasets', default=lambda: {})())
+        for run_cfg in cfg.runs:
+            task_datasets = {**datasets}
+            task_datasets.update(run_cfg.get('datasets', default=lambda: {})())
 
-            train_model_for_task(model=model, task=task or task_cfg.task, datasets=task_datasets,
-                                 cfg=ConfigDict({k: v for k, v in cfg.items() if k != 'tasks'}),
-                                 run_suffix=f'{run_suffix}_{task_cfg.run}'
-                                            if (run_suffix and task_cfg.get('run'))
-                                            else run_suffix or task_cfg.get('run'))
+            run_model_training(model=model, datasets=task_datasets, run_cfg=run_cfg,
+                               cfg=ConfigDict({k: v for k, v in cfg.items() if k not in ['datasets', 'runs']}))
 
-            if task_cfg.get('freeze_featurizer', default=False):
+            if run_cfg.get('freeze_featurizer', default=False):
                 model.freeze_featurizer()
 
 
