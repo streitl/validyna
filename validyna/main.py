@@ -66,8 +66,10 @@ def run_model_training(
 
     if cfg.get('use_wandb', default=False):
         model_artifact = wandb.Artifact(f'{cfg.project}.{run_name}', type='model')
-        torch.save(model.state_dict(), os.path.join(cfg.results_dir, cfg.project, run_name, 'model.h5'))
-        model_artifact.add_dir(os.path.join(cfg.results_dir, cfg.project))
+        dir_path = os.path.join(cfg.results_dir, cfg.project, run_name)
+        os.makedirs(dir_path, exist_ok=True)
+        torch.save(model.state_dict(), os.path.join(dir_path, 'model.h5'))
+        model_artifact.add_dir(dir_path)
         wandb.run.log_artifact(model_artifact)
         trainer_kwargs['logger'].experiment.finish(quiet=True)
 
