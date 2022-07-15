@@ -74,7 +74,9 @@ class ChunkModule(pl.LightningModule, ABC):
 
     def validation_step(self, batch, batch_idx=0, dataloader_idx=0):
         set_name = self.val_dataloader_name(dataloader_idx)
-        self.log_metrics(self.get_metrics(batch, set_name), set_name)
+        metrics = self.get_metrics(batch, set_name)
+        self.log_metrics(metrics, set_name)
+        return metrics
 
 
 class ChunkClassifier(ChunkModule):

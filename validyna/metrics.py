@@ -2,32 +2,42 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Type, Any
 
 import pytorch_lightning as pl
-import torch
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 from torch import Tensor
-from torch.utils.data import DataLoader
 
+import validyna.registry as registry
 from validyna.models.task_modules import ChunkClassifier, ChunkModule, ChunkForecaster, ChunkTripletFeaturizer
 
 
-class Prober(pl.Callback):
-    def __init__(self, cls: Type[ChunkModule]):
-        self.cls = cls
-        self.prober = None
+def with_prober_class(f):
+    def wrapper(self, *args, **kwargs):
+        original_class = self.module.__class__
+        self.module.__class__ = self.cls
+        value = f(self, *args, **kwargs)
+        self.module.__class__ = original_class
+        return value
+    return wrapper
 
-    def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+
+class Prober(pl.Callback):
+    def __init__(self, task: str):
+        self.task = task
+        self.cls: Type[ChunkModule] = registry.task_registry[task]
+        self.module = None
+
+    def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if isinstance(pl_module, self.cls):
             raise ValueError("The prober should be for a task different than the training one.")
-        self.prober = self.cls(pl_module.model, pl_module.datasets, pl_module.cfg)
+        self.module = pl_module
 
+    @with_prober_class
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx: int, unused: int = 0):
-        self.prober.training_step(self.prober.train_dataloader()[batch_idx], batch_idx=batch_idx)
+        self.module.training_step(batch, batch_idx)
 
+    @with_prober_class
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx: int, dataloader_idx: int):
-        self.prober.validation_step(self.prober.val_dataloader()[dataloader_idx][batch_idx],
-                                    batch_idx=batch_idx,
-                                    dataloader_idx=dataloader_idx)
+        self.module.validation_step(batch, batch_idx, dataloader_idx)
 
 
 class ClassMetricLogger(pl.Callback, ABC):
@@ -53,7 +63,8 @@ class ClassMetricLogger(pl.Callback, ABC):
         self.class_index = pl_module.datasets['train'].classes.index(self.class_of_interest)
 
         original = pl_module.get_metrics
-        pl_module.get_metrics = lambda batch, set_name: {**original(batch, set_name), **self.get_metrics(pl_module, batch)}
+        pl_module.get_metrics = lambda batch, set_name: {**original(batch, set_name),
+                                                         **self.get_metrics(pl_module, batch)}
 
 
 class ClassSensitivitySpecificity(ClassMetricLogger):

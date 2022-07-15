@@ -45,12 +45,13 @@ def get_config(which: Optional[str] = None) -> Union[ConfigDict, dict]:
         'max_epochs': 100,
         'deterministic': True,
         'val_check_interval': 5,
-        'limit_val_batches': 1.0,
-        'limit_train_batches': 1.0,
+        'limit_val_batches': 0,
+        'limit_train_batches': 0,
         'log_every_n_steps': 1,
         'gpus': 1,
         'detect_anomaly': True,
         'fast_dev_run': False,
+        'callbacks': [],
     }, type_safe=False)
     cfg.early_stopping = ConfigDict({'patience': 3, 'check_on_train_epoch_end': True})
     cfg.optimizer = ('AdamW', {'lr': 0.01})

@@ -2,11 +2,11 @@ from typing import Type
 
 import pytorch_lightning as pl
 
-from validyna.metrics import ClassSensitivitySpecificity, ClassFeatureSTD, ClassMSE
+from validyna.metrics import ClassSensitivitySpecificity, ClassFeatureSTD, ClassMSE, Prober
 from validyna.models.multitask_models import all_implementations, MultiTaskTimeSeriesModel
-from validyna.models.task_modules import ChunkClassifier, ChunkTripletFeaturizer, ChunkForecaster
+from validyna.models.task_modules import ChunkClassifier, ChunkTripletFeaturizer, ChunkForecaster, ChunkModule
 
-task_registry: dict[str, Type[pl.LightningModule]] = dict()
+task_registry: dict[str, Type[ChunkModule]] = dict()
 model_registry: dict[str, Type[MultiTaskTimeSeriesModel]] = dict()
 metric_registry: dict[str, Type[pl.Callback]] = dict()
 
@@ -16,7 +16,7 @@ def register_model(name: str, Model: Type[MultiTaskTimeSeriesModel]):
     model_registry[name] = Model
 
 
-def register_task(task: str, Module: Type[pl.LightningModule]):
+def register_task(task: str, Module: Type[ChunkModule]):
     assert task not in task_registry, f'{task} is already registered as a task!'
     task_registry[task] = Module
 
@@ -36,3 +36,4 @@ register_task('forecasting', ChunkForecaster)
 register_metric('ClassSensitivitySpecificity', ClassSensitivitySpecificity)
 register_metric('ClassFeatureSTD', ClassFeatureSTD)
 register_metric('ClassMSE', ClassMSE)
+register_metric('Prober', Prober)

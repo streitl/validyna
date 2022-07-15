@@ -2,6 +2,8 @@ import os
 from typing import Optional
 
 import pytorch_lightning as pl
+import torch
+import wandb
 from absl import app
 from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
@@ -39,12 +41,17 @@ def run_model_training(
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
     task = cfg.get('task') or run_cfg.task
     if cfg.get('use_wandb', default=False):
-        run_suffix = f"{cfg.get('run_suffix')}_{run_cfg.get('run_suffix')}"\
+        run_suffix = f"{cfg.get('run_suffix')}_{run_cfg.get('run_suffix')}" \
             if cfg.get('run_suffix') and run_cfg.get('run_suffix') \
             else cfg.get('run_suffix') or run_cfg.get('run_suffix')
         run_name = f'{model.name()}_{run_suffix or task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir,
-                                   config=dict(model=model.hyperparams, **cfg))
+                                   log_model=True, config=dict(model=model.hyperparams, **cfg))
+        if run_cfg.get('restore_run_suffix', default=False):
+            restore_run_name = f'{model.name()}_{run_cfg.restore_run_suffix}'
+            model_at = wandb.run.use_artifact(f'{cfg.project}.{restore_run_name}:latest')
+            model_dir = model_at.download(os.path.join(cfg.results_dir, cfg.project, restore_run_name))
+            model.load_state_dict(torch.load(os.path.join(model_dir, 'model.h5')))
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
     trainer_callbacks = [metric_registry[name](**kwargs)
@@ -53,9 +60,15 @@ def run_model_training(
     trainer_callbacks += [LearningRateMonitor(logging_interval='epoch')]
     if 'early_stopping' in cfg:
         trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name()}.val', **cfg.early_stopping)]
+
     trainer = pl.Trainer(callbacks=trainer_callbacks, **trainer_kwargs)
     trainer.fit(module)
+
     if cfg.get('use_wandb', default=False):
+        model_artifact = wandb.Artifact(f'{cfg.project}.{run_name}', type='model')
+        torch.save(model.state_dict(), os.path.join(cfg.results_dir, cfg.project, run_name, 'model.h5'))
+        model_artifact.add_dir(os.path.join(cfg.results_dir, cfg.project))
+        wandb.run.log_artifact(model_artifact)
         trainer_kwargs['logger'].experiment.finish(quiet=True)
 
 
