@@ -142,12 +142,25 @@ def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
 
 
 def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)) -> Tensor:
+    # To avoid dividing by zero
     std[std == 0] = 1
     return (data - mean) / std
 
 
 class ChunkMultiTaskDataset:
+    """
+    A dataset object containing information relevant to classification, feature extraction and forecasting tasks, namely
+    the input time series, class information, and output time series.
 
+    Here, trajectories of length T are split into trajectories of length n_in to be fed to the models.
+
+    Args:
+        - trajectories_per_sys: a dictionary where keys are attractor names (i.e. the class) and the values are torch
+            | Tensors of dimension N, T, D where N is the number of trajectories, T is the length of each trajectory,
+            | and D is the vector size for each time step
+        - n_in (int): number of time steps that are given to the models
+        - n_out (int): (if forecasting is involved) number of future time steps predicted by the model
+    """
     def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
         empty_classes = [k for k, v in trajectories_per_sys.items() if v.size(0) == 0]
         self.classes = [c for c in sorted(trajectories_per_sys.keys()) if c not in empty_classes] + list(
@@ -186,6 +199,9 @@ class ChunkMultiTaskDataset:
         self.normalized = False
 
     def normalize(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
+        """
+        Takes a mean and std value, and normalizes the input and output chunks in the dataset.
+        """
         if self.normalized:
             print('Warning: the dataset is already normalized!')
         else:
@@ -196,6 +212,10 @@ class ChunkMultiTaskDataset:
             self.normalized = True
 
     def get_positive_negative_batch(self, anchor_classes: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        For each anchor class in the batch, sample a negative class, then sample a trajectory chunk for the anchor and
+        negative classes.
+        """
         # Get batch of random negative classes different to the anchor ones
         other_classes = torch.randint_like(input=anchor_classes, high=self.n_non_empty_classes - 1)
         other_classes[other_classes >= anchor_classes] += 1

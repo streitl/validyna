@@ -13,6 +13,16 @@ from validyna.models.multitask_models import MultiTaskTimeSeriesModel
 
 
 class ChunkModule(pl.LightningModule, ABC):
+    """
+    Args:
+        - model: an instance of a MultiTaskTimeSeriesModel
+        - datasets: each key is a set name including 'train' and 'val', with its associated MultiTaskDataset
+        - cfg: a ConfigDict as specified in <main.run_experiment>, with the following extra keys:
+            - normalize_data (bool, default=False): whether to use the training set's mean and std to normalize all sets
+            - dataloader (ConfigDict): passed to the constructor of dataloaders
+            - optimizer (Tuple[str, dict]): left: name of a torch optimizer; right: optimizer parameters
+            - lr_scheduler (Tuple[str, dict]): left: name of a torch lr_scheduler; right: scheduler parameters
+    """
     def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, ChunkMultiTaskDataset], cfg: ConfigDict):
         super().__init__()
         self.model = model
@@ -116,7 +126,7 @@ class ChunkTripletFeaturizer(ChunkModule):
     def forward(self, x):
         return self.model(x, kind='featurize')
 
-    def get_metrics(self, batch, set_name: str):
+    def get_metrics(self, batch, set_name):
         x_in, x_out, x_class = batch
         a = x_in
         p, n = self.datasets[set_name].get_positive_negative_batch(x_class)

@@ -23,23 +23,37 @@ def run_model_training(
         run_cfg: Optional[ConfigDict] = None,
 ):
     """
-    TODO
+    This method takes care of training the given model on the given datasets, using the configuration specified in cfg
+    (the global configuration) and run_cfg (the configuration specific to this run).
+
+    This method allows training the model for different tasks, to load weights from a previous run, to log metrics and
+    model checkpoints on the cloud using Weights and Biases, and to control the training procedure by specifying the
+    use of early stopping, model hyper-parameters, and more.
+
     Args:
-        - model (str):
-        - task (str):
-        - datasets (dict[str, ChunkMultiTaskDataset):
-        - cfg (ConfigDict): as specified in `run_experiment`, using only the keys
-            - seed
-            - use_wandb
-            - project
-            - results_dir
-            - trainer
-            - early_stopping
-        - run_suffix (str)
+        - model (MultiTaskTimeSeriesModel): the model to be trained
+        - datasets (dict of ChunkMultiTaskDatasets):
+        - cfg (ConfigDict): the global configuration as specified in <run_experiment>, including the keys:
+            - seed (int): the random seed for reproducibility
+            - trainer (dict): the parameters to be passed to the Pytorch-Lightning trainer object
+            - task (str): the task the model should be trained on (e.g. 'classification')
+            - use_wandb (bool, default=False): whether to use Weights and Biases to log metrics and save models
+            - project (str): name of the project
+            - run_suffix (str): a text to add to the name of the run after the name of the model
+            - results_dir (str): where to save the results, namely metrics and model checkpoints
+            - early_stopping (optional dict): the parameters of the EarlyStopping callback or None for no early stopping
+        - run_cfg (ConfigDict): the configuration specific to this run
+            - task (str): the task the model should be trained on (e.g. 'classification')
+            - run_suffix (str): a text to add to the name of the run after the name of the model
+            - restore_run_suffix (optional str): the name of a previous run to be loaded into the model
+            - trainer_callbacks (list[Tuple[str, dict, str]]): list of triplets where the first is the name of the
+                | callback (as registered in metrics registry), the second is the parameters to be passed to it,
+                | and the third is the task where the callback should be used (e.g. 'classification', 'all', ...)
     """
     pl.seed_everything(cfg.seed, workers=True)
     trainer_kwargs = {k: v for k, v in cfg.trainer.items() if k != 'callbacks'}
     task = cfg.get('task') or run_cfg.task
+    # When Weights and Biases is used, we need to determine the run name, create the logger, and save/load models
     if cfg.get('use_wandb', default=False):
         run_suffix = f"{cfg.get('run_suffix')}_{run_cfg.get('run_suffix')}" \
             if cfg.get('run_suffix') and run_cfg.get('run_suffix') \
@@ -47,7 +61,8 @@ def run_model_training(
         run_name = f'{model.name()}_{run_suffix or task}'
         wandb_logger = WandbLogger(project=cfg.project, name=run_name, id=run_name, save_dir=cfg.results_dir,
                                    log_model=True, config=dict(model=model.hyperparams, **cfg))
-        if run_cfg.get('restore_run_suffix', default=False):
+        # Allows restoring a model from a previous run
+        if 'restore_run_suffix' in run_cfg:
             restore_run_name = f'{model.name()}_{run_cfg.restore_run_suffix}'
             model_at = wandb.run.use_artifact(f'{cfg.project}.{restore_run_name}:latest')
             model_dir = model_at.download(os.path.join(cfg.results_dir, cfg.project, restore_run_name))
@@ -76,41 +91,35 @@ def run_model_training(
 
 def run_experiment(cfg: ConfigDict):
     """
+    This method takes a configuration and runs the experiment defined by it.
+    Then, for each different run in the experiment, it calls <run_model_training>
+
     Args:
         - cfg (ConfigDict): a configuration dictionary with the following keys:
             - results_dir (str): the path of the directory to save the results
-            - seed (int): the random seed to be used for the entire experiment for each model training
-            - use_wandb (bool): whether to log results using the Weights and Biases logger
-            - project (Optional[str]): the name of the project, passed to wandb if used
-            - n_in (int): number of time steps that are given to the models
-            - n_out (int): (if forecasting is involved) number of future time steps models predicted by the model
-            - trainer (ConfigDict): the items are passed to <pl.Trainer>
+            - datasets (Callable[[], [dict]]: a callable function returning a dictionary of MultiTaskDatasets
             - models (list[Tuple[str, dict]]): tuples where the first is a model name registered in the model registry,
-             and the second is a dictionary with the parameters to be passed to the model
-            - tasks (ConfigDict):
-                - common (ConfigDict):
-                    - datasets (Optional[ConfigDict]): has at least the following keys:
-                        - train (dict[str, ChunkMultiTaskDataset]): data used to optimize the model
-                        - val (dict[str, ChunkMultiTaskDataset]): data used for early stopping, learning rate adjustment
-                    other keys will be treated as test sets and metrics will be reported as such
-                    - metrics (): TODO
-                - list (list[ConfigDict]): each element has the following keys:
-                    - task (str): the name of the task to be evaluated
-                    - freeze_featurizer (bool, default=False):
-            - dataloader (ConfigDict): passed to the constructor of dataloaders
-            - normalize_data (bool, default=False): whether to use the training set's mean and std to normalize all sets
-            - early_stopping (ConfigDict):
-            - lr_scheduler (ConfigDict): passed to the constructor of dataloaders
+                | and the second is a dictionary with the parameters to be passed to the model constructor
+            - runs (list[ConfigDict]): for each ordered run, specify extra configuration; allowed keys:
+                - datasets: same structure as cfg.datasets
+                - freeze_featurizer (bool, default=False): whether to freeze the featurizer weights after this run
+                > more keys shown in the documentation of <run_model_training>
+            - n_in (int): number of time steps that are given to the models
+            - n_out (int): (if forecasting is involved) number of future time steps predicted by the model
+            - n_features (int): the number of features used by the model to encode a trajectory chunk
+            - space_dim (int): the space dimension (vector size at each time step) of the used attractors
+            > more keys specified in the documentation of <run_model_training> and of <data.ChunkMultiTaskDataset>
     """
-    print('main start')
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(cfg.results_dir, exist_ok=True)
 
     datasets = cfg.get('datasets', default=lambda: {})()
 
+    # Iterate over all models
     for model_name, model_args in cfg.models:
         Model = model_registry[model_name]
         model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
+        # Iterate over runs for each model
         for run_cfg in cfg.runs:
             run_datasets = {**datasets}
             run_datasets.update(run_cfg.get('datasets', default=lambda: {})())

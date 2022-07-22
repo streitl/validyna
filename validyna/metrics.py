@@ -17,10 +17,16 @@ def with_prober_class(f):
         value = f(self, *args, **kwargs)
         self.module.__class__ = original_class
         return value
+
     return wrapper
 
 
 class Prober(pl.Callback):
+    """
+    Probes the metrics corresponding to a task different to the one the model is being trained for.
+    For instance, while training for classification, can proble feature extraction metrics such as triplet loss.
+    """
+
     def __init__(self, task: str):
         self.task = task
         self.cls: Type[ChunkModule] = registry.task_registry[task]
@@ -41,6 +47,9 @@ class Prober(pl.Callback):
 
 
 class ClassMetricLogger(pl.Callback, ABC):
+    """
+    Super-class of metric loggers that are specific to one class and that extend the module's <get_metrics> method.
+    """
 
     def __init__(self, class_of_interest: str):
         self.class_of_interest = class_of_interest
@@ -68,6 +77,9 @@ class ClassMetricLogger(pl.Callback, ABC):
 
 
 class ClassSensitivitySpecificity(ClassMetricLogger):
+    """
+    Logs the sensitivity (a.k.a. true positive rate) and specificity (true negative rate) of the specified class.
+    """
 
     def __init__(self, class_of_interest: str):
         super().__init__(class_of_interest)
@@ -88,6 +100,9 @@ class ClassSensitivitySpecificity(ClassMetricLogger):
 
 
 class ClassMSE(ClassMetricLogger):
+    """
+    Logs the Mean Squared Error of the model but only for trajectories of the specified class.
+    """
 
     def __init__(self, class_of_interest: str):
         super().__init__(class_of_interest)
@@ -105,6 +120,9 @@ class ClassMSE(ClassMetricLogger):
 
 
 class ClassFeatureSTD(ClassMetricLogger):
+    """
+    Logs the standard deviation of features of the model but only for samples of the specified class.
+    """
 
     def __init__(self, class_of_interest: str):
         super().__init__(class_of_interest)

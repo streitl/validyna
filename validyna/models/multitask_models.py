@@ -20,8 +20,11 @@ def check_int_arg(arg: any, n_min: int, desc: str):
     return arg
 
 
-def make_simple_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, Activation: Type[nn.Module] = nn.ReLU):
+def make_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, Activation: Type[nn.Module] = nn.ReLU) -> nn.Module:
     """
+    Creates a simple MLP with the specified layer widths and activations.
+    We use these MLPs as the task heads for our multitask models.
+
     Args:
         - i: number of input units
         - h: number of units in the hidden layers
@@ -276,7 +279,7 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
         if not self.is_prepared_to_featurize():
             raise ValueError(f'Prepare {self.name()} to featurize before preparing to classify')
         super().prepare_to_classify(n_classes=n_classes)
-        self.classifier = classifier or make_simple_mlp(i=self.n_features, h=self.n_features, o=n_classes)
+        self.classifier = classifier or make_mlp(i=self.n_features, h=self.n_features, o=n_classes)
 
     def prepare_to_featurize(self, n_features: int, featurizer: Optional[nn.Module] = None):
         super().prepare_to_featurize(n_features=n_features)
@@ -287,7 +290,7 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
             raise ValueError(f'Prepare {self.name()} to featurize before preparing to forecast')
         super().prepare_to_forecast(n_out=n_out)
         true_n_out = self.space_dim * (1 if self.forecast_type == 'one_by_one' else self.n_out)
-        self.forecaster = forecaster or make_simple_mlp(i=self.n_features, h=self.n_features, o=true_n_out)
+        self.forecaster = forecaster or make_mlp(i=self.n_features, h=self.n_features, o=true_n_out)
 
     # Forward methods
     def _forward_classify(self, x: Tensor) -> Tensor:
@@ -416,7 +419,7 @@ class MultiNBEATS(MultiTaskTimeSeriesModel):
         if not self.is_prepared_to_featurize():
             raise ValueError(f'Prepare {self.name()} to featurize before preparing to classify')
         super().prepare_to_classify(n_classes=n_classes)
-        self.classifier = classifier or make_simple_mlp(i=self.n_features, h=self.n_features, o=self.n_classes)
+        self.classifier = classifier or make_mlp(i=self.n_features, h=self.n_features, o=self.n_classes)
 
     def prepare_to_featurize(self, n_features: int, featurizer: Optional[nn.Module] = None):
         super().prepare_to_featurize(n_features=n_features)
@@ -505,7 +508,7 @@ class MultiTransformer(MultiTaskTimeSeriesModel):
         if not self.is_prepared_to_featurize():
             raise ValueError(f'Prepare {self.name()} to featurize before preparing to classify')
         super().prepare_to_classify(n_classes=n_classes)
-        self.classifier = classifier or make_simple_mlp(i=self.n_features, h=self.n_features, o=self.n_classes)
+        self.classifier = classifier or make_mlp(i=self.n_features, h=self.n_features, o=self.n_classes)
 
     def prepare_to_featurize(self, n_features: int, featurizer: Optional[nn.Module] = None):
         super().prepare_to_featurize(n_features=n_features)
@@ -515,8 +518,8 @@ class MultiTransformer(MultiTaskTimeSeriesModel):
         if not self.is_prepared_to_featurize():
             raise ValueError(f'Prepare {self.name()} to featurize before preparing to forecast')
         super().prepare_to_forecast(n_out)
-        self.forecaster = forecaster or make_simple_mlp(i=self.n_features, h=self.n_features,
-                                                        o=self.n_out * self.space_dim)
+        self.forecaster = forecaster or make_mlp(i=self.n_features, h=self.n_features,
+                                                 o=self.n_out * self.space_dim)
 
     # Forward methods
     def _forward_classify(self, x: Tensor) -> Tensor:
