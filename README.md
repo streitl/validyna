@@ -12,6 +12,7 @@ It allows to write many kinds of experiments in a multi-task setting, and includ
 2. Run the command `conda env create -f environment.yml`
    1. this will create an environment named `chaos`
    2. you can change the environment name in the `environment.yml` file before running the command
+3. Run the command `export PYTHONPATH="${PYTHONPATH}:${pwd}/validyna"` to add validyna to the set of libraries that can be imported
 
 ## Project structure
 - `validyna`: the source code for the project
@@ -39,7 +40,7 @@ It allows to write many kinds of experiments in a multi-task setting, and includ
 ## Running experiments and writing new ones
 Current experiment configurations are in the folder `experiment_configs`.
 
-To run an experiment, execute the command: `python validyna/main.py --cfg=path/to/experiment_config.py`
+To run an experiment, execute the command: `python validyna/main.py --cfg=path/to/experiment_config.py` (make sure the third installation step is complete).
 
 To add a new experiment config, check the documentation of `run_experiment` and `run_model_training` in `main.py`, as well as `ChunkMultiTaskDataset` in `data.py`.
 
