@@ -7,7 +7,7 @@ from torch.utils.data import TensorDataset, random_split, DataLoader
 
 from validyna.models.multitask_models import MultiTaskTimeSeriesModel, MultiNBEATS, MultiTransformer, MultiGRU, \
     MultiLSTM
-from validyna.models.task_modules import ChunkClassifier
+from validyna.models.task_modules import SliceClassifier
 
 common_parameters = dict(n_in=5, space_dim=8)
 
@@ -142,7 +142,7 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
         for Model, params in self.models:
             trainer = Trainer(max_epochs=200, logger=False, enable_checkpointing=False, enable_progress_bar=False,
                               callbacks=[EarlyStopping(monitor='acc.val', patience=10)])
-            classifier = ChunkClassifier(model=Model(n_classes=2, n_features=10, **params, **common_parameters))
+            classifier = SliceClassifier(model=Model(n_classes=2, n_features=10, **params, **common_parameters))
             trainer.fit(classifier, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
             print(trainer.callback_metrics)
             self.assertLess(0.99, trainer.callback_metrics['acc.val'].item())
@@ -161,7 +161,7 @@ class MultiTaskTimeSeriesModelsTests(unittest.TestCase):
         for Model, params in self.models:
             trainer = Trainer(max_epochs=200, logger=False, enable_checkpointing=False, enable_progress_bar=False,
                               callbacks=[EarlyStopping(monitor='acc.val', patience=10)])
-            classifier = ChunkClassifier(model=Model(n_classes=3, n_features=10, **params, **common_parameters))
+            classifier = SliceClassifier(model=Model(n_classes=3, n_features=10, **params, **common_parameters))
             trainer.fit(classifier, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
             print(trainer.callback_metrics)
             self.assertLess(trainer.callback_metrics['acc.val'].item(), 0.5)

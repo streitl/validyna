@@ -1,7 +1,7 @@
 import os
-import random
 import re
 import warnings
+from copy import deepcopy
 from typing import Callable, Optional, Union, Tuple
 
 import dysts.flows
@@ -86,7 +86,7 @@ def load_data_dictionary(dir_path: str, cond: Callable[[str], bool] = lambda s: 
     for filename in os.listdir(dir_path):
         attractor = re.search('attractor=(.+).pt', filename).group(1)
         if cond(attractor):
-            result[attractor] = load_from_path(f'{dir_path}/{filename}')
+            result[attractor] = load_from_path(os.path.join(dir_path, filename))
     return result
 
 
@@ -136,8 +136,8 @@ def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> 
     return TensorDataset(X, y)
 
 
-def make_datasets(paths: dict[str, str], n_in: int, n_out: int):
-    return {name: ChunkMultiTaskDataset(load_data_dictionary(dir_path=path), n_in, n_out)
+def make_datasets(paths: dict[str, str], **kwargs):
+    return {name: SliceMultiTaskDataset(load_data_dictionary(dir_path=path), **kwargs)
             for name, path in paths.items()}
 
 
@@ -147,81 +147,112 @@ def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.o
     return (data - mean) / std
 
 
-class ChunkMultiTaskDataset:
+def scale_trajectory_group(trajectories: Tensor, mins: Tensor, maxs: Tensor):
+    """
+    Scales the trajectories per dimension component to be in the range [-1, 1].
+    Args:
+        - trajectories: an N x T x D tensor containing N trajectories of length T in a space of dimension D
+        - mins: a D-dimensional tensor of minimums
+        - max: a D-dimensional tensor of maximums
+    """
+    D = trajectories.size(-1)
+    m = mins.size(0)
+    M = maxs.size(0)
+    assert D == m and m == M, 'Trajectories and mins / maxs must have same dimension D'
+    return (trajectories - mins) / (maxs - mins) * 2 - 1
+
+
+class SliceMultiTaskDataset:
     """
     A dataset object containing information relevant to classification, feature extraction and forecasting tasks, namely
     the input time series, class information, and output time series.
 
-    Here, trajectories of length T are split into trajectories of length n_in to be fed to the models.
+    Here, trajectories of length T are split into slices of length n_in to be fed to the models.
 
     Args:
-        - trajectories_per_sys: a dictionary where keys are attractor names (i.e. the class) and the values are torch
+        - trajectories_per_class: a dictionary where keys are classes (i.e. attractor names) and the values are torch
             | Tensors of dimension N, T, D where N is the number of trajectories, T is the length of each trajectory,
-            | and D is the vector size for each time step
+            | and D is the vector size for each time step (must be the same for all classes!)
         - n_in (int): number of time steps that are given to the models
         - n_out (int): (if forecasting is involved) number of future time steps predicted by the model
     """
-    def __init__(self, trajectories_per_sys: dict[str, Tensor], n_in: int, n_out: int):
-        empty_classes = [k for k, v in trajectories_per_sys.items() if v.size(0) == 0]
-        self.classes = [c for c in sorted(trajectories_per_sys.keys()) if c not in empty_classes] + list(
-            sorted(empty_classes))
+
+    def __init__(self, trajectories_per_class: dict[str, Tensor], n_in: int, n_out: int):
+        empty_classes = [k for k, v in trajectories_per_class.items() if v.size(0) == 0]
+        self.classes = [c for c in sorted(trajectories_per_class.keys()) if c not in empty_classes] + \
+            list(sorted(empty_classes))
         self.n_classes = len(self.classes)
         self.n_non_empty_classes = self.n_classes - len(empty_classes)
+
         self.n_in = n_in
         self.n_out = n_out
 
-        X_in = []
-        X_out = []
-        X_class = []
-        for class_n, name in enumerate(self.classes):
-            trajectories = trajectories_per_sys[name]
+        sample = next(iter(trajectories_per_class.values()))
+        self.n_trajectories, self.trajectory_length, self.space_dim = tuple(sample.size())
+
+        self.trajectories_per_class = deepcopy(trajectories_per_class)
+        self.slices_per_class = None
+        self.n_slices_per_class = self.n_trajectories * (self.trajectory_length - (self.n_in + self.n_out))
+
+        self.X_in = None
+        self.X_out = None
+        self.X_class = None
+
+        self.data_processed = False
+
+    def get_mins_maxs(self) -> Tuple[dict[str, Tensor], dict[str, Tensor]]:
+        """
+        Returns a dict with the minimum values in each dimension for each class, and another dict with the maximums
+        """
+        mins = dict()
+        maxs = dict()
+        for class_n, class_name in enumerate(self.classes):
+            trajectories = self.trajectories_per_class[class_name]
+            mins[class_name] = trajectories.amin(dim=(0, 1))
+            maxs[class_name] = trajectories.amax(dim=(0, 1))
+        return mins, maxs
+
+    def process_data(self, mins: Optional[dict[str, Tensor]] = None, maxs: Optional[dict[str, Tensor]] = None):
+        """
+        Splits each trajectory into slices, creates class labels from dictionary, and creates
+        """
+        X_in, X_out, X_class = [], [], []
+        self.slices_per_class = dict()
+        for class_n, class_name in enumerate(self.classes):
+            trajectories = self.trajectories_per_class[class_name]
             if trajectories.size(0) == 0:
                 continue
-            slices = build_slices(trajectories, n=n_in + n_out)
-            self.class_sizes = slices.size(0)
-            X_in.append(slices[:, :n_in, :])
-            X_out.append(slices[:, -n_out:, :])
-            X_class.append(torch.full(size=(X_in[-1].size(0),), fill_value=class_n))
+            if mins is not None and maxs is not None:
+                trajectories = scale_trajectory_group(trajectories, mins=mins[class_name], maxs=maxs[class_name])
+                self.trajectories_per_class[class_name] = trajectories
+            slices = build_slices(trajectories, n=self.n_in + self.n_out)
+            self.slices_per_class[class_name] = slices
+            X_in.append(slices[:, :self.n_in, :])
+            X_out.append(slices[:, -self.n_out:, :])
+            X_class.append(torch.full(size=(slices.size(0),), fill_value=class_n))
 
         self.X_in = torch.concat(X_in, dim=0)
         self.X_out = torch.concat(X_out, dim=0)
         self.X_class = torch.concat(X_class, dim=0)
 
-        self.chunks_per_sys: dict[str, Tensor] = dict()
-        for class_n, name in enumerate(self.classes):
-            self.chunks_per_sys[name] = self.X_in[self.X_class == class_n]
-
-        X = torch.concat((self.X_in, self.X_out), dim=1)
-        self.mean = X.mean(dim=[0, 1])
-        self.std = X.std(dim=[0, 1])
-
-        self.space_dim = self.X_in.size(2)
-        self.normalized = False
-
-    def normalize(self, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)):
-        """
-        Takes a mean and std value, and normalizes the input and output chunks in the dataset.
-        """
-        if self.normalized:
-            print('Warning: the dataset is already normalized!')
-        else:
-            self.X_in = normalize(self.X_in, mean, std)
-            self.X_out = normalize(self.X_out, mean, std)
-            for name in self.classes:
-                self.chunks_per_sys[name] = normalize(self.chunks_per_sys[name], mean, std)
-            self.normalized = True
+        self.data_processed = True
 
     def get_positive_negative_batch(self, anchor_classes: Tensor) -> Tuple[Tensor, Tensor]:
         """
-        For each anchor class in the batch, sample a negative class, then sample a trajectory chunk for the anchor and
+        For each anchor class in the batch, sample a negative class, then sample a trajectory slice for the anchor and
         negative classes.
         """
+        if not self.data_processed:
+            raise ValueError('Process data before calling get_positive_negative_batch')
         # Get batch of random negative classes different to the anchor ones
         other_classes = torch.randint_like(input=anchor_classes, high=self.n_non_empty_classes - 1)
         other_classes[other_classes >= anchor_classes] += 1
-        positive = self.X_in[anchor_classes * self.class_sizes + torch.randint_like(anchor_classes, self.class_sizes)]
-        negative = self.X_in[other_classes * self.class_sizes + torch.randint_like(anchor_classes, self.class_sizes)]
+        nspc = self.n_slices_per_class
+        positive = self.X_in[anchor_classes * nspc + torch.randint_like(anchor_classes, nspc)]
+        negative = self.X_in[other_classes * nspc + torch.randint_like(anchor_classes, nspc)]
         return positive, negative
 
     def tensor_dataset(self) -> Dataset:
+        if not self.data_processed:
+            raise ValueError('Process data before calling tensor_dataset')
         return TensorDataset(self.X_in, self.X_out, self.X_class)

@@ -20,9 +20,10 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
 
     fig = plt.figure(figsize=(h * 4, w * 4))
 
-    ax = None
+    axes = []
     for i in range(n_plots):
-        ax = fig.add_subplot(h, w, i + 1, projection='3d')
+        axes.append(fig.add_subplot(h, w, i + 1, projection='3d'))
+        ax = axes[i]
         ic = arrays[0][i, 0, :]
         ax.set_title(f'(x0,y0,z0)={tuple(np.round(ic, 1))}')
         ax.set_xlabel('x')
@@ -35,11 +36,10 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
         for n, array in enumerate(arrays):
             ax.plot3D(*array[i, :, :].T, label=labels[n], **kwargs)
 
-    handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc='upper center')
-
+    handles, labels = axes[-1].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='center left', bbox_to_anchor=(1, 0))
     plt.tight_layout()
-    return fig
+    return fig, axes
 
 
 def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, **kwargs):
@@ -54,22 +54,25 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
     mins = np.min(array_all, axis=(0, 1))
     maxs = np.max(array_all, axis=(0, 1))
 
-    fig = plt.figure(figsize=(16, n_plots * space_dim))
-    subfigs = fig.subfigures(min(n_plots, 2), 1, hspace=0.01)
+    fig = plt.figure(figsize=(16, n_plots * space_dim * 2))
+    subfigs = fig.subfigures(n_plots, 1, hspace=0.01)
 
+    axes = []
     for i in range(n_plots):
         ic = arrays[0][i, 0, :]
         subfig = subfigs[i] if n_plots > 1 else subfigs
-        axes = subfig.subplots(space_dim, 1, sharex=True)
+        axes.append(subfig.subplots(space_dim, 1, sharex=True))
         subfig.suptitle(f'x̅₀≈{tuple(np.round(ic, 1))}')
-        axes[-1].set_xlabel('time')
+        axes[i][-1].set_xlabel('time')
 
         for n, array in enumerate(arrays):
-            for dim, axis in enumerate(axes):
-                axis.plot(array[i, :, dim], label=labels[n], **kwargs)
-                axis.set_ylabel(f'x{dim}' if space_dim > 3 else ['x', 'y', 'z'][dim])
-                axis.set_ylim(mins[dim], maxs[dim])
-                axis.get_yaxis().set_label_coords(-0.03, 0.5)
+            for dim, ax in enumerate(axes[i]):
+                ax.plot(array[i, :, dim], label=labels[n], **kwargs)
+                ax.set_ylabel(f'x{dim}' if space_dim > 3 else ['x', 'y', 'z'][dim])
+                ax.set_ylim(mins[dim], maxs[dim])
+                ax.get_yaxis().set_label_coords(-0.03, 0.5)
 
-    plt.legend()
-    return fig
+    handles, labels = axes[-1][-1].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper left', bbox_to_anchor=(1, 0.5))
+
+    return fig, axes

@@ -32,8 +32,10 @@ def make_mlp(i: int, h: int, o: int, n_hidden_layers: int = 3, Activation: Type[
         - n_hidden_layers: number of hidden layers
         - activation: activation function applied after each linear layer except the last
     """
-    modules = [nn.Linear(i, h), Activation(), nn.BatchNorm1d(h)] + \
-              [nn.Linear(h, h), Activation(), nn.BatchNorm1d(h)] * (n_hidden_layers - 1) + \
+    if n_hidden_layers == 0:
+        return nn.Linear(i, o)
+    modules = [nn.Linear(i, h), Activation()] + \
+              [nn.Linear(h, h), Activation()] * (n_hidden_layers - 1) + \
               [nn.Linear(h, o)]
     return nn.Sequential(*modules)
 
@@ -185,7 +187,7 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
             raise ValueError(f'{self.name()} is not prepared to featurize')
         return self._forward_featurize(x)
 
-    def forecast_in_chunks(self, x: Tensor, n: int) -> Tensor:
+    def forecast_by_slices(self, x: Tensor, n: int) -> Tensor:
         """
         Inspired from the implementation in Darts.
         To forecast n future time steps where n != n_out,
@@ -327,18 +329,6 @@ class MultiRNN(MultiTaskTimeSeriesModel, ABC):
             ts[:, i, :] = self.forecaster(features)
             out, hx = self.rnn(ts[:, i:i + 1, :].clone(), hx)
         return ts
-
-    def get_applicable_forecast_functions(self):
-        """
-        Returns a dictionary containing all the forecasting functions that can be used by this model
-        given its forecasting type.
-        """
-        functions = {'chunks': self.forecast_in_chunks}
-        if self.forecast_type == 'one_by_one':
-            functions['one_by_one'] = self.forecast_recurrently_one_by_one
-        elif self.forecast_type == 'multi':
-            functions['multi'] = self.forecast_recurrently_chunk_first
-        return functions
 
     # Overriding of the other methods
     def _get_featurizer_parameters(self):

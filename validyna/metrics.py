@@ -1,3 +1,4 @@
+import pdb
 from abc import ABC, abstractmethod
 from typing import Tuple, Type, Any
 
@@ -7,7 +8,7 @@ from sklearn.metrics import confusion_matrix
 from torch import Tensor
 
 import validyna.registry as registry
-from validyna.models.task_modules import ChunkClassifier, ChunkModule, ChunkForecaster, ChunkTripletFeaturizer
+from validyna.models.task_modules import SliceClassifier, SliceModule, SliceForecaster, SliceFeaturizer
 
 
 def with_prober_class(f):
@@ -29,12 +30,12 @@ class Prober(pl.Callback):
 
     def __init__(self, task: str):
         self.task = task
-        self.cls: Type[ChunkModule] = registry.task_registry[task]
+        self.cls: Type[SliceModule] = registry.task_registry[task]
         self.module = None
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if isinstance(pl_module, self.cls):
-            raise ValueError("The prober should be for a task different than the training one.")
+            raise ValueError('The prober should be for a task different than the training one.')
         self.module = pl_module
 
     @with_prober_class
@@ -56,7 +57,7 @@ class ClassMetricLogger(pl.Callback, ABC):
         self.class_index = None
 
     @abstractmethod
-    def required_module_type(self) -> Type[ChunkModule]:
+    def required_module_type(self) -> Type[SliceModule]:
         pass
 
     @abstractmethod
@@ -64,8 +65,8 @@ class ClassMetricLogger(pl.Callback, ABC):
         pass
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        if not isinstance(pl_module, ChunkModule):
-            raise ValueError(f'This callback only works for {ChunkModule.__name__}')
+        if not isinstance(pl_module, SliceModule):
+            raise ValueError(f'This callback only works for {SliceModule.__name__}')
         if not isinstance(pl_module, self.required_module_type()):
             raise ValueError(
                 f'Can only log the metric {self.__class__.__name__} for class {self.required_module_type().__name__}')
@@ -85,18 +86,26 @@ class ClassSensitivitySpecificity(ClassMetricLogger):
         super().__init__(class_of_interest)
 
     def required_module_type(self):
-        return ChunkClassifier
+        return SliceClassifier
 
-    def get_metrics(self, classifier: ChunkClassifier, batch: Tuple[Tensor, Tensor, Tensor]):
+    def get_metrics(self, classifier: SliceClassifier, batch: Tuple[Tensor, Tensor, Tensor]):
         x_in, x_out, x_class = batch
-        pred = classifier.predict_step((x_in,))
-        # Ignore all different classes and only consider this class or any other
+        pred: Tensor = classifier.predict_step((x_in,))
+        # Ignore all different classes and only consider this class vs any other
         target = x_class == self.class_index
         pred = pred == self.class_index
         # Get confusion matrix metrics
-        tn, fp, fn, tp = confusion_matrix(y_true=target.to('cpu'), y_pred=pred.to('cpu')).ravel()
-        return {f'{self.class_of_interest}.sensitivity': tp / (tp + fn),
-                f'{self.class_of_interest}.specificity': tn / (tn + fp)}
+        res = confusion_matrix(y_true=target.to('cpu'), y_pred=pred.to('cpu')).ravel()
+        sensitivity, specificity = 1.0, 1.0
+        if len(res) == 4:
+            tn, fp, fn, tp = res
+            if tp + fn != 0:
+                sensitivity = tp / (tp + fn)
+            if tn + fp != 0:
+                specificity = tn / (tn + fp)
+        # pdb.set_trace()
+        return {f'{self.class_of_interest}.sensitivity': sensitivity,
+                f'{self.class_of_interest}.specificity': specificity}
 
 
 class ClassMSE(ClassMetricLogger):
@@ -108,9 +117,9 @@ class ClassMSE(ClassMetricLogger):
         super().__init__(class_of_interest)
 
     def required_module_type(self):
-        return ChunkForecaster
+        return SliceForecaster
 
-    def get_metrics(self, forecaster: ChunkForecaster, batch: Tuple[Tensor, Tensor, Tensor]):
+    def get_metrics(self, forecaster: SliceForecaster, batch: Tuple[Tensor, Tensor, Tensor]):
         x_in, x_out, x_class = batch
         pred = forecaster(x_in)
         # Only consider the specified class
@@ -128,9 +137,9 @@ class ClassFeatureSTD(ClassMetricLogger):
         super().__init__(class_of_interest)
 
     def required_module_type(self):
-        return ChunkTripletFeaturizer
+        return SliceFeaturizer
 
-    def get_metrics(self, featurizer: ChunkForecaster, batch: Tuple[Tensor, Tensor, Tensor]):
+    def get_metrics(self, featurizer: SliceForecaster, batch: Tuple[Tensor, Tensor, Tensor]):
         x_in, x_out, x_class = batch
         pred = featurizer.predict_step((x_in,))
         # Only consider the specified class

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
+import pdb
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
@@ -8,30 +9,33 @@ import torch.optim
 from ml_collections import ConfigDict
 from torch.utils.data import DataLoader
 
-from validyna.data import ChunkMultiTaskDataset
+from validyna.data import SliceMultiTaskDataset
 from validyna.models.multitask_models import MultiTaskTimeSeriesModel
 
 
-class ChunkModule(pl.LightningModule, ABC):
+class SliceModule(pl.LightningModule, ABC):
     """
     Args:
         - model: an instance of a MultiTaskTimeSeriesModel
         - datasets: each key is a set name including 'train' and 'val', with its associated MultiTaskDataset
         - cfg: a ConfigDict as specified in <main.run_experiment>, with the following extra keys:
-            - normalize_data (bool, default=False): whether to use the training set's mean and std to normalize all sets
+            - scale_data (bool, default=False): whether to scale data in [-1, 1] per-component for each attractor
             - dataloader (ConfigDict): passed to the constructor of dataloaders
             - optimizer (Tuple[str, dict]): left: name of a torch optimizer; right: optimizer parameters
             - lr_scheduler (Tuple[str, dict]): left: name of a torch lr_scheduler; right: scheduler parameters
     """
-    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, ChunkMultiTaskDataset], cfg: ConfigDict):
+    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, SliceMultiTaskDataset], cfg: ConfigDict):
         super().__init__()
         self.model = model
         self.cfg = cfg
         self.datasets = datasets
-        if cfg.get('normalize_data', default=False):
-            train_mean, train_std = datasets['train'].mean, datasets['train'].std
-            for dataset in self.datasets.values():
-                dataset.normalize(train_mean, train_std)
+        # Scaling
+        mins, maxs = None, None
+        if cfg.scale_data:
+            mins, maxs = datasets['train'].get_mins_maxs()
+        for name in datasets.keys():
+            datasets[name].process_data(mins, maxs)
+
         self.dataloaders = {
             name: DataLoader(dataset.tensor_dataset(), **cfg.dataloader)
             for name, dataset in datasets.items()
@@ -49,9 +53,6 @@ class ChunkModule(pl.LightningModule, ABC):
     def val_dataloader(self):
         return [self.dataloaders[name] for name in self.val_dataloader_names]
 
-    def val_dataloader_name(self, dataloader_idx):
-        return self.val_dataloader_names[dataloader_idx]
-
     def configure_optimizers(self):
         optim_name, optim_params = self.cfg.optimizer
         Optim = getattr(torch.optim, optim_name)
@@ -67,13 +68,16 @@ class ChunkModule(pl.LightningModule, ABC):
         return optimizers, schedulers
 
     @abstractmethod
-    def get_metrics(self, batch, set_name: Optional[str] = None) -> dict[str, float]:
+    def get_metrics(self, batch, set_name: Optional[str]) -> dict[str, float]:
         pass
 
     def log_metrics(self, metrics: dict[str, float], set_name: str) -> None:
+        # print(set_name)
+        # print(metrics)
         for name, value in metrics.items():
             if name == 'loss':
                 name = self.loss_name()
+            # print(f'{name}.{set_name}', value)
             self.log(f'{name}.{set_name}', value, add_dataloader_idx=False)
 
     def training_step(self, batch, batch_idx=0):
@@ -83,15 +87,15 @@ class ChunkModule(pl.LightningModule, ABC):
         return metrics
 
     def validation_step(self, batch, batch_idx=0, dataloader_idx=0):
-        set_name = self.val_dataloader_name(dataloader_idx)
+        set_name = self.val_dataloader_names[dataloader_idx]
         metrics = self.get_metrics(batch, set_name)
         self.log_metrics(metrics, set_name)
         return metrics
 
 
-class ChunkClassifier(ChunkModule):
+class SliceClassifier(SliceModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, ChunkMultiTaskDataset], cfg: ConfigDict):
+    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, SliceMultiTaskDataset], cfg: ConfigDict):
         super().__init__(model, datasets, cfg)
         model.prepare_to_classify(n_classes=datasets['train'].n_classes)
 
@@ -101,12 +105,13 @@ class ChunkClassifier(ChunkModule):
     def forward(self, x):
         return self.model(x, kind='classify')
 
-    def get_metrics(self, batch, set_name=None):
+    def get_metrics(self, batch, set_name: str):
         x_in, x_out, x_class = batch
         out = self(x_in)
         loss = F.cross_entropy(out, x_class)
         preds = torch.argmax(F.log_softmax(out, dim=1), dim=1)
         acc = (x_class == preds).float().mean()
+        # pdb.set_trace()
         return {'loss': loss, 'acc': acc}
 
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
@@ -114,9 +119,9 @@ class ChunkClassifier(ChunkModule):
         return torch.argmax(F.log_softmax(self(x), dim=1), dim=1)
 
 
-class ChunkTripletFeaturizer(ChunkModule):
+class SliceFeaturizer(SliceModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, ChunkMultiTaskDataset], cfg: ConfigDict):
+    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, SliceMultiTaskDataset], cfg: ConfigDict):
         super().__init__(model, datasets, cfg)
         model.prepare_to_featurize(n_features=cfg.n_features)
 
@@ -126,7 +131,7 @@ class ChunkTripletFeaturizer(ChunkModule):
     def forward(self, x):
         return self.model(x, kind='featurize')
 
-    def get_metrics(self, batch, set_name):
+    def get_metrics(self, batch, set_name: str):
         x_in, x_out, x_class = batch
         a = x_in
         p, n = self.datasets[set_name].get_positive_negative_batch(x_class)
@@ -138,9 +143,9 @@ class ChunkTripletFeaturizer(ChunkModule):
         return self(x)
 
 
-class ChunkForecaster(ChunkModule):
+class SliceForecaster(SliceModule):
 
-    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, ChunkMultiTaskDataset], cfg: ConfigDict):
+    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, SliceMultiTaskDataset], cfg: ConfigDict):
         super().__init__(model, datasets, cfg)
         model.prepare_to_forecast(n_out=cfg.n_out)
 
@@ -158,4 +163,4 @@ class ChunkForecaster(ChunkModule):
     def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
         tensor = batch[0]
         x = tensor[:, :self.model.n_in, :]
-        return self.model.forecast_in_chunks(x, n=tensor.size(1) - self.model.n_in)
+        return self.model.forecast_by_slices(x, n=tensor.size(1) - self.model.n_in)

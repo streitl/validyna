@@ -9,7 +9,7 @@ from ml_collections import ConfigDict, config_flags
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 
-from validyna.data import ChunkMultiTaskDataset
+from validyna.data import SliceMultiTaskDataset
 from validyna.models import multitask_models as mm
 from validyna.registry import task_registry, model_registry, metric_registry
 
@@ -18,7 +18,7 @@ _CONFIG = config_flags.DEFINE_config_file('cfg')
 
 def run_model_training(
         model: mm.MultiTaskTimeSeriesModel,
-        datasets: dict[str, ChunkMultiTaskDataset],
+        datasets: dict[str, SliceMultiTaskDataset],
         cfg: ConfigDict,
         run_cfg: Optional[ConfigDict] = None,
 ):
@@ -32,7 +32,7 @@ def run_model_training(
 
     Args:
         - model (MultiTaskTimeSeriesModel): the model to be trained
-        - datasets (dict of ChunkMultiTaskDatasets):
+        - datasets (dict of SliceMultiTaskDatasets):
         - cfg (ConfigDict): the global configuration as specified in <run_experiment>, including the keys:
             - seed (int): the random seed for reproducibility
             - trainer (dict): the parameters to be passed to the Pytorch-Lightning trainer object
@@ -76,7 +76,7 @@ def run_model_training(
     if 'early_stopping' in cfg:
         trainer_callbacks += [EarlyStopping(monitor=f'{module.loss_name()}.val', **cfg.early_stopping)]
 
-    trainer = pl.Trainer(callbacks=trainer_callbacks, **trainer_kwargs)
+    trainer = pl.Trainer(callbacks=trainer_callbacks, default_root_dir=cfg.results_dir, **trainer_kwargs)
     trainer.fit(module)
 
     if cfg.get('use_wandb', default=False):
@@ -106,9 +106,9 @@ def run_experiment(cfg: ConfigDict):
                 > more keys shown in the documentation of <run_model_training>
             - n_in (int): number of time steps that are given to the models
             - n_out (int): (if forecasting is involved) number of future time steps predicted by the model
-            - n_features (int): the number of features used by the model to encode a trajectory chunk
+            - n_features (int): the number of features used by the model to encode a trajectory slice
             - space_dim (int): the space dimension (vector size at each time step) of the used attractors
-            > more keys specified in the documentation of <run_model_training> and of <data.ChunkMultiTaskDataset>
+            > more keys specified in the documentation of <run_model_training> and of <data.SliceMultiTaskDataset>
     """
     if not os.path.isdir(cfg.results_dir):
         os.makedirs(cfg.results_dir, exist_ok=True)

@@ -4,9 +4,9 @@ import pytorch_lightning as pl
 
 from validyna.metrics import ClassSensitivitySpecificity, ClassFeatureSTD, ClassMSE, Prober
 from validyna.models.multitask_models import all_implementations, MultiTaskTimeSeriesModel
-from validyna.models.task_modules import ChunkClassifier, ChunkTripletFeaturizer, ChunkForecaster, ChunkModule
+from validyna.models.task_modules import SliceClassifier, SliceFeaturizer, SliceForecaster, SliceModule
 
-task_registry: dict[str, Type[ChunkModule]] = dict()
+task_registry: dict[str, Type[SliceModule]] = dict()
 model_registry: dict[str, Type[MultiTaskTimeSeriesModel]] = dict()
 metric_registry: dict[str, Type[pl.Callback]] = dict()
 
@@ -16,7 +16,7 @@ def register_model(name: str, Model: Type[MultiTaskTimeSeriesModel]):
     model_registry[name] = Model
 
 
-def register_task(task: str, Module: Type[ChunkModule]):
+def register_task(task: str, Module: Type[SliceModule]):
     assert task not in task_registry, f'{task} is already registered as a task!'
     task_registry[task] = Module
 
@@ -29,9 +29,9 @@ def register_metric(name: str, metric: any):
 for Model in all_implementations:
     register_model(Model.name(), Model)
 
-register_task('classification', ChunkClassifier)
-register_task('featurization', ChunkTripletFeaturizer)
-register_task('forecasting', ChunkForecaster)
+register_task('classification', SliceClassifier)
+register_task('featurization', SliceFeaturizer)
+register_task('forecasting', SliceForecaster)
 
 register_metric('ClassSensitivitySpecificity', ClassSensitivitySpecificity)
 register_metric('ClassFeatureSTD', ClassFeatureSTD)

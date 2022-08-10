@@ -17,24 +17,26 @@ def get_config():
         'length': 200,
         'resample': True,
         'pts_per_period': 50,
-        'seed': 2022,
         'verbose': True,
     })
     cfg.data.individual = ConfigDict({
         'train': {
             'count': 100,
             'ic_noise': 0.01,
-            'ic_scale': 1
+            'ic_scale': 1,
+            'seed': 0,
         },
         'val': {
             'count': 20,
             'ic_noise': 0.01,
-            'ic_scale': 1
+            'ic_scale': 1,
+            'seed': 1,
         },
         'test': {
             'count': 30,
-            'ic_noise': 0.05,
-            'ic_scale': 1.001
+            'ic_noise': 0.02,
+            'ic_scale': 1.001,
+            'seed': 2,
         }
     })
     return cfg
