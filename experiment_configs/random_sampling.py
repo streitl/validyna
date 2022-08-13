@@ -1,5 +1,4 @@
 import random
-import torch
 from ml_collections import ConfigDict
 
 from experiment_configs.default import get_config as default_config
@@ -7,7 +6,6 @@ from experiment_configs.default import get_config as default_config
 
 def get_config():
     cfg = default_config()
-    cfg.project = 'sampling'
 
     cfg.sampling_seed = 1
     cfg.sampling_ratio = 0.75
