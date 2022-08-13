@@ -8,7 +8,7 @@ def get_config():
 
     cfg.project = 'few-shot-sprott'
 
-    placeholders['f_all'] = lambda a: a in ['SprottE', 'Arneodo', 'Lorenz', 'Sakarya', 'NuclearQuadrupole']
+    placeholders['f_all'] = lambda a: a in ['SprottE', 'Arneodo', 'Lorenz', 'Sakarya', 'QiChen']
     cfg.runs = cfg.runs[1:]
     cfg.runs[0]['run_suffix'] = 'unrelated_lone'
 

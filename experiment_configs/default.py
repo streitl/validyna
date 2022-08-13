@@ -3,7 +3,7 @@ from typing import Optional, Union
 from ml_collections.config_dict import ConfigDict, placeholder
 
 from config import ROOT_DIR
-from validyna.data import make_datasets
+from validyna.data import load_datasets
 
 placeholders = {
     'project': placeholder(str),
@@ -33,12 +33,12 @@ def get_config(which: Optional[str] = None) -> Union[ConfigDict, dict]:
 
     cfg.scale_data = True
 
-    data_dir = f'{ROOT_DIR}/data/default(length=200-pts_per_period=50-resample=True)'
-    cfg.datasets = lambda: make_datasets({
-        'train': f'{data_dir}/train(count=100-ic_noise=0.01-ic_scale=1-seed=0)',
-        'val': f'{data_dir}/val(count=20-ic_noise=0.01-ic_scale=1-seed=1)',
-        'test': f'{data_dir}/test(count=30-ic_noise=0.02-ic_scale=1.001-seed=2)',
-    }, n_in=cfg.n_in, n_out=cfg.n_out)
+    data_dir = f'{ROOT_DIR}/data/default(length=250-pts_per_period=50-resample=True)'
+    cfg.datasets = lambda: load_datasets({
+        'train': f'{data_dir}/train(count=80-ic_noise=0.05-seed=0)',
+        'val': f'{data_dir}/val(count=20-ic_noise=0.05-seed=1)',
+        'test': f'{data_dir}/test(count=30-ic_noise=0.1-seed=2)',
+    })
     cfg.task = placeholders['task']
     cfg.run_suffix = placeholders['run_suffix']
     cfg.runs = []

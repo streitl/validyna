@@ -11,31 +11,29 @@ def get_config():
     cfg = ConfigDict()
     cfg.attractors = 'all'
     cfg.filter = lambda a: len(a.ic) == 3
-    cfg.path = f'{ROOT_DIR}/data/default'
+    cfg.path = f'{ROOT_DIR}/data/new'
     cfg.data = ConfigDict()
     cfg.data.common = ConfigDict({
-        'length': 200,
+        'length': 250,
         'resample': True,
         'pts_per_period': 50,
         'verbose': True,
+        'ic_scale': 1,
     })
     cfg.data.individual = ConfigDict({
         'train': {
-            'count': 100,
-            'ic_noise': 0.01,
-            'ic_scale': 1,
+            'count': 80,
+            'ic_noise': 0.05,
             'seed': 0,
         },
         'val': {
             'count': 20,
-            'ic_noise': 0.01,
-            'ic_scale': 1,
+            'ic_noise': 0.05,
             'seed': 1,
         },
         'test': {
             'count': 30,
-            'ic_noise': 0.02,
-            'ic_scale': 1.001,
+            'ic_noise': 0.1,
             'seed': 2,
         }
     })

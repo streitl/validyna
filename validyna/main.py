@@ -32,7 +32,7 @@ def run_model_training(
 
     Args:
         - model (MultiTaskTimeSeriesModel): the model to be trained
-        - datasets (dict of SliceMultiTaskDatasets):
+        - datasets (dict of SliceMultiTaskDatasets): dict with at least the training and validation sets
         - cfg (ConfigDict): the global configuration as specified in <run_experiment>, including the keys:
             - seed (int): the random seed for reproducibility
             - trainer (dict): the parameters to be passed to the Pytorch-Lightning trainer object
@@ -123,9 +123,10 @@ def run_experiment(cfg: ConfigDict):
         for run_cfg in cfg.runs:
             run_datasets = {**datasets}
             run_datasets.update(run_cfg.get('datasets', default=lambda: {})())
+            run_datasets = {k: SliceMultiTaskDataset(v, cfg.n_in, cfg.n_out) for k, v in run_datasets.items()}
+            serializable_cfg = ConfigDict({k: v for k, v in cfg.items() if k not in ['datasets', 'runs']})
 
-            run_model_training(model=model, datasets=run_datasets, run_cfg=run_cfg,
-                               cfg=ConfigDict({k: v for k, v in cfg.items() if k not in ['datasets', 'runs']}))
+            run_model_training(model=model, datasets=run_datasets, run_cfg=run_cfg, cfg=serializable_cfg)
 
             if run_cfg.get('freeze_featurizer', default=False):
                 model.freeze_featurizer()

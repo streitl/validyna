@@ -27,6 +27,14 @@ def generate_trajectories(
         seed: Optional[int] = None,
         **kwargs
 ) -> Tensor:
+    """
+    Generates trajectories from the given dynamical system using random sampling of initial conditions.
+    """
+    sample = attractor.make_trajectory(n=500, resample=True, pts_per_period=100)
+    mins = sample.min(axis=0)
+    maxs = sample.max(axis=0)
+    ic_noise = ic_noise * (maxs - mins)
+
     attractor_ic = attractor.ic.copy()
     space_dim = len(attractor_ic)
     if ic is None:
@@ -60,7 +68,8 @@ def generate_trajectories(
             if verbose:
                 pbar.update()
             ics.append(attractor.ic)
-    pbar.close()
+    if verbose:
+        pbar.close()
     warnings.simplefilter('default', UserWarning)
     return trajectories
 
@@ -136,9 +145,8 @@ def build_in_out_pair_dataset(dataset: TensorDataset, n_in: int, n_out: int) -> 
     return TensorDataset(X, y)
 
 
-def make_datasets(paths: dict[str, str], **kwargs):
-    return {name: SliceMultiTaskDataset(load_data_dictionary(dir_path=path), **kwargs)
-            for name, path in paths.items()}
+def load_datasets(paths: dict[str, str]):
+    return {name: load_data_dictionary(dir_path=path) for name, path in paths.items()}
 
 
 def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.ones(1)) -> Tensor:
@@ -147,7 +155,7 @@ def normalize(data: Tensor, mean: Tensor = torch.zeros(1), std: Tensor = torch.o
     return (data - mean) / std
 
 
-def scale_trajectory_group(trajectories: Tensor, mins: Tensor, maxs: Tensor):
+def scale_trajectory_group(trajectories: Tensor, mins: Optional[Tensor] = None, maxs: Optional[Tensor] = None):
     """
     Scales the trajectories per dimension component to be in the range [-1, 1].
     Args:
@@ -155,6 +163,9 @@ def scale_trajectory_group(trajectories: Tensor, mins: Tensor, maxs: Tensor):
         - mins: a D-dimensional tensor of minimums
         - max: a D-dimensional tensor of maximums
     """
+    if mins is None and maxs is None:
+        mins = trajectories.amin(dim=(0, 1))
+        maxs = trajectories.amax(dim=(0, 1))
     D = trajectories.size(-1)
     m = mins.size(0)
     M = maxs.size(0)
@@ -216,6 +227,8 @@ class SliceMultiTaskDataset:
         """
         Splits each trajectory into slices, creates class labels from dictionary, and creates
         """
+        if self.data_processed:
+            return
         X_in, X_out, X_class = [], [], []
         self.slices_per_class = dict()
         for class_n, class_name in enumerate(self.classes):

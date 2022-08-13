@@ -5,10 +5,13 @@ import numpy as np
 from torch import Tensor
 
 
-def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, **kwargs):
+def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, plot_titles: list[str], **kwargs):
     if len(tensors) != len(labels):
         raise ValueError(
             f'Number of trajectories and of labels must be equal (got {len(tensors)} and {len(labels)})')
+    if len(plot_titles) != n_plots:
+        raise ValueError(
+            f'Number of plot titles and of plots must be equal (got {len(plot_titles)} and {n_plots})')
 
     arrays = [tensor.numpy() for tensor in tensors]
     array_all = np.concatenate(tuple(arrays))
@@ -24,8 +27,7 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
     for i in range(n_plots):
         axes.append(fig.add_subplot(h, w, i + 1, projection='3d'))
         ax = axes[i]
-        ic = arrays[0][i, 0, :]
-        ax.set_title(f'(x0,y0,z0)={tuple(np.round(ic, 1))}')
+        ax.set_title(plot_titles[i])
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
@@ -42,10 +44,13 @@ def plot_3d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
     return fig, axes
 
 
-def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, **kwargs):
+def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int, plot_titles: list[str], **kwargs):
     if len(tensors) != len(labels):
         raise ValueError(
             f'Number of trajectories and of labels must be equal (got {len(tensors)} and {len(labels)})')
+    if len(plot_titles) != n_plots:
+        raise ValueError(
+            f'Number of plot titles and of plots must be equal (got {len(plot_titles)} and {n_plots})')
     assert all(tensor.size(0) >= n_plots for tensor in tensors)
 
     arrays = [tensor.numpy() for tensor in tensors]
@@ -62,7 +67,7 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
         ic = arrays[0][i, 0, :]
         subfig = subfigs[i] if n_plots > 1 else subfigs
         axes.append(subfig.subplots(space_dim, 1, sharex=True))
-        subfig.suptitle(f'x̅₀≈{tuple(np.round(ic, 1))}')
+        subfig.suptitle(plot_titles[i])
         axes[i][-1].set_xlabel('time')
 
         for n, array in enumerate(arrays):
@@ -74,5 +79,6 @@ def plot_1d_trajectories(tensors: List[Tensor], labels: List[str], n_plots: int,
 
     handles, labels = axes[-1][-1].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
 
     return fig, axes
