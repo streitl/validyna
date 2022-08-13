@@ -102,6 +102,7 @@ def run_experiment(cfg: ConfigDict):
                 | and the second is a dictionary with the parameters to be passed to the model constructor
             - runs (list[ConfigDict]): for each ordered run, specify extra configuration; allowed keys:
                 - datasets: same structure as cfg.datasets
+                - fresh_model (bool, default=False): whether to use a fresh model instead of the one from previous run
                 - freeze_featurizer (bool, default=False): whether to freeze the featurizer weights after this run
                 > more keys shown in the documentation of <run_model_training>
             - n_in (int): number of time steps that are given to the models
@@ -125,6 +126,9 @@ def run_experiment(cfg: ConfigDict):
             run_datasets.update(run_cfg.get('datasets', default=lambda: {})())
             run_datasets = {k: SliceMultiTaskDataset(v, cfg.n_in, cfg.n_out) for k, v in run_datasets.items()}
             serializable_cfg = ConfigDict({k: v for k, v in cfg.items() if k not in ['datasets', 'runs']})
+
+            if run_cfg.get('fresh_model', default=False):
+                model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
 
             run_model_training(model=model, datasets=run_datasets, run_cfg=run_cfg, cfg=serializable_cfg)
 
