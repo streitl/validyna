@@ -198,7 +198,7 @@ class SliceMultiTaskDataset:
         self.n_in = n_in
         self.n_out = n_out
 
-        sample = next(iter(trajectories_per_class.values()))
+        sample = next(iter(filter(lambda v: v.size(0) != 0, trajectories_per_class.values())))
         self.n_trajectories, self.trajectory_length, self.space_dim = tuple(sample.size())
 
         self.trajectories_per_class = deepcopy(trajectories_per_class)
