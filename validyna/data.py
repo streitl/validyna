@@ -219,8 +219,9 @@ class SliceMultiTaskDataset:
         maxs = dict()
         for class_n, class_name in enumerate(self.classes):
             trajectories = self.trajectories_per_class[class_name]
-            mins[class_name] = trajectories.amin(dim=(0, 1))
-            maxs[class_name] = trajectories.amax(dim=(0, 1))
+            if trajectories.size(0) != 0:
+                mins[class_name] = trajectories.amin(dim=(0, 1))
+                maxs[class_name] = trajectories.amax(dim=(0, 1))
         return mins, maxs
 
     def process_data(self, mins: Optional[dict[str, Tensor]] = None, maxs: Optional[dict[str, Tensor]] = None):
