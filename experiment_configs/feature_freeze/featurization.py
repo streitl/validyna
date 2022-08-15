@@ -9,15 +9,16 @@ def get_config():
     cfg.runs = list(map(lambda d: ConfigDict(d), [
         {
             'task': 'featurization',
-            'freeze_featurizer': True,
         },
         {
             'task': 'forecasting',
-            'run_suffix': 'featurization>forecasting',
+            'freeze_featurizer': True,
+            'run_suffix': 'featurization_then_forecasting',
         },
         {
             'task': 'classification',
-            'run_suffix': 'featurization>classification',
+            'freeze_featurizer': True,
+            'run_suffix': 'featurization_then_classification',
         }
     ]))
     return cfg

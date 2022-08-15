@@ -46,6 +46,7 @@ def run_model_training(
             - task (str): the task the model should be trained on (e.g. 'classification')
             - run_suffix (str): a text to add to the name of the run after the name of the model
             - restore_run_suffix (optional str): the name of a previous run to be loaded into the model
+            - freeze_featurizer (bool, default=False): whether to freeze the featurizer weights before this run
             - trainer_callbacks (list[Tuple[str, dict, str]]): list of triplets where the first is the name of the
                 | callback (as registered in metrics registry), the second is the parameters to be passed to it,
                 | and the third is the task where the callback should be used (e.g. 'classification', 'all', ...)
@@ -69,6 +70,10 @@ def run_model_training(
             model.load_state_dict(torch.load(os.path.join(model_dir, 'model.h5')))
         trainer_kwargs['logger'] = wandb_logger
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
+
+    if run_cfg.get('freeze_featurizer', default=False):
+        model.freeze_featurizer()
+
     trainer_callbacks = [metric_registry[name](**kwargs)
                          for name, kwargs, t in cfg.trainer.get('callbacks', []) + run_cfg.get('trainer_callbacks', [])
                          if t == task or t == 'all']
@@ -103,7 +108,6 @@ def run_experiment(cfg: ConfigDict):
             - runs (list[ConfigDict]): for each ordered run, specify extra configuration; allowed keys:
                 - datasets: same structure as cfg.datasets
                 - fresh_model (bool, default=False): whether to use a fresh model instead of the one from previous run
-                - freeze_featurizer (bool, default=False): whether to freeze the featurizer weights after this run
                 > more keys shown in the documentation of <run_model_training>
             - n_in (int): number of time steps that are given to the models
             - n_out (int): (if forecasting is involved) number of future time steps predicted by the model
@@ -131,9 +135,6 @@ def run_experiment(cfg: ConfigDict):
                 model = Model(n_in=cfg.n_in, n_features=cfg.n_features, space_dim=cfg.space_dim, **model_args)
 
             run_model_training(model=model, datasets=run_datasets, run_cfg=run_cfg, cfg=serializable_cfg)
-
-            if run_cfg.get('freeze_featurizer', default=False):
-                model.freeze_featurizer()
 
 
 def main(_argv):
