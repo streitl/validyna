@@ -1,4 +1,5 @@
 import random
+
 from ml_collections import ConfigDict
 
 from experiment_configs.default import get_config as default_config
