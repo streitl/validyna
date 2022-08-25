@@ -89,8 +89,10 @@ def generate_and_save_data_dictionary(attractors: list[str], dir_path: str, **kw
     return data
 
 
-def load_data_dictionary(dir_path: str, cond: Callable[[str], bool] = lambda s: True) -> dict[str, Tensor]:
-    print(f'Loading {dir_path}')
+def load_data_dictionary(dir_path: str, cond: Callable[[str], bool] = lambda s: True, verbose=True) \
+        -> dict[str, Tensor]:
+    if verbose:
+        print(f'Loading {dir_path}')
     result = dict()
     for filename in os.listdir(dir_path):
         attractor = re.search('attractor=(.+).pt', filename).group(1)

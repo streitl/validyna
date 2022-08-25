@@ -139,7 +139,7 @@ class ClassFeatureSTD(ClassMetricLogger):
     def required_module_type(self):
         return SliceFeaturizer
 
-    def get_metrics(self, featurizer: SliceForecaster, batch: Tuple[Tensor, Tensor, Tensor]):
+    def get_metrics(self, featurizer: SliceFeaturizer, batch: Tuple[Tensor, Tensor, Tensor]):
         x_in, x_out, x_class = batch
         pred = featurizer.predict_step((x_in,))
         # Only consider the specified class

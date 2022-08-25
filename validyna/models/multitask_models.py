@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 from typing import Literal, Optional, Type
 
@@ -99,21 +100,21 @@ class MultiTaskTimeSeriesModel(nn.Module, ABC):
     @abstractmethod
     def prepare_to_classify(self, n_classes: int):
         if self.is_prepared_to_classify():
-            print(f'Warning: this {self.name()} is already prepared to classify')
+            warnings.warn(f'Warning: this {self.name()} is already prepared to classify')
         self.n_classes = check_int_arg(n_classes, n_min=2, desc='number of classes')
         self.register_hyperparams(n_classes=n_classes)
 
     @abstractmethod
     def prepare_to_featurize(self, n_features: int):
         if self.is_prepared_to_featurize():
-            print(f'Warning: this {self.name()} is already prepared to featurize')
+            warnings.warn(f'Warning: this {self.name()} is already prepared to featurize')
         self.n_features = check_int_arg(n_features, n_min=1, desc='number of features')
         self.register_hyperparams(n_features=n_features)
 
     @abstractmethod
     def prepare_to_forecast(self, n_out: int):
         if self.is_prepared_to_forecast():
-            print(f'Warning: this {self.name()} is already prepared to forecast')
+            warnings.warn(f'Warning: this {self.name()} is already prepared to forecast')
         self.n_out = check_int_arg(n_out, n_min=1, desc='number of output time steps')
         self.register_hyperparams(n_out=n_out)
 
