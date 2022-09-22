@@ -36,7 +36,7 @@ def run_model_training(
         - cfg (ConfigDict): the global configuration as specified in <run_experiment>, including the keys:
             - seed (int): the random seed for reproducibility
             - trainer (dict): the parameters to be passed to the Pytorch-Lightning trainer object
-            - task (str): the task the model should be trained on (e.g. 'classification')
+            - task (str): the task the model should be trained on (e.g. 'classification'). See task_registry
             - use_wandb (bool, default=False): whether to use Weights and Biases to log metrics and save models
             - project (str): name of the project
             - run_suffix (str): a text to add to the name of the run after the name of the model

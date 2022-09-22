@@ -43,8 +43,9 @@ class SliceModule(pl.LightningModule, ABC):
         self.val_dataloader_names = ['val'] + [n for n in self.dataloaders.keys() if n not in ['train', 'val']]
         self.save_hyperparameters(ignore=['model', 'datasets'])
 
+    @classmethod
     @abstractmethod
-    def loss_name(self) -> str:
+    def loss_name(cls) -> str:
         pass
 
     def train_dataloader(self):
@@ -72,8 +73,6 @@ class SliceModule(pl.LightningModule, ABC):
         pass
 
     def log_metrics(self, metrics: dict[str, float], set_name: str) -> None:
-        # print(set_name)
-        # print(metrics)
         for name, value in metrics.items():
             if name == 'loss':
                 name = self.loss_name()
@@ -99,7 +98,8 @@ class SliceClassifier(SliceModule):
         super().__init__(model, datasets, cfg)
         model.prepare_to_classify(n_classes=datasets['train'].n_classes)
 
-    def loss_name(self) -> str:
+    @classmethod
+    def loss_name(cls) -> str:
         return 'loss.cross'
 
     def forward(self, x):
@@ -125,7 +125,8 @@ class SliceFeaturizer(SliceModule):
         super().__init__(model, datasets, cfg)
         model.prepare_to_featurize(n_features=cfg.n_features)
 
-    def loss_name(self) -> str:
+    @classmethod
+    def loss_name(cls) -> str:
         return 'loss.triplet'
 
     def forward(self, x):
@@ -149,7 +150,8 @@ class SliceForecaster(SliceModule):
         super().__init__(model, datasets, cfg)
         model.prepare_to_forecast(n_out=cfg.n_out)
 
-    def loss_name(self) -> str:
+    @classmethod
+    def loss_name(cls) -> str:
         return 'loss.mse'
 
     def forward(self, x):
@@ -164,3 +166,35 @@ class SliceForecaster(SliceModule):
         tensor = batch[0]
         x = tensor[:, :self.model.n_in, :]
         return self.model.forecast_by_slices(x, n=tensor.size(1) - self.model.n_in)
+
+
+class SliceHybrid(SliceModule):
+    def __init__(self, model: MultiTaskTimeSeriesModel, datasets: dict[str, SliceMultiTaskDataset], cfg: ConfigDict):
+        super().__init__(model, datasets, cfg)
+
+        model.prepare_to_featurize(n_features=cfg.n_features)
+        model.prepare_to_forecast(n_out=cfg.n_out)
+        model.prepare_to_classify(n_classes=datasets['train'].n_classes)
+
+        assert sum(cfg.loss_coefficients.values()) == 1, 'sum of coefficients must be 1'
+        self.loss_scales = {'cross': 0.3, 'mse': 0.005, 'triplet': 0.12}
+        self.loss_coefficients = {k: v / self.loss_scales[k] for k, v in cfg.loss_coefficients.items()}
+
+    @classmethod
+    def loss_name(cls) -> str:
+        return 'loss.total'
+
+    def get_metrics(self, batch, set_name: str):
+        metrics = dict()
+        losses = dict()
+
+        for cls in [SliceClassifier, SliceFeaturizer, SliceForecaster]:
+            self.__class__ = cls
+            metrics.update(self.get_metrics(batch, set_name))
+            self.__class__ = SliceHybrid
+            loss = metrics.pop('loss')
+            metrics[cls.loss_name()] = loss
+            losses[cls.loss_name().replace('loss.', '')] = loss
+        loss = sum([self.loss_coefficients[n] * losses[n] for n in self.loss_coefficients.keys()])
+
+        return {'loss': loss, **metrics}

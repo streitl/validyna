@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 
 from validyna.metrics import ClassSensitivitySpecificity, ClassFeatureSTD, ClassMSE, Prober
 from validyna.models.multitask_models import all_implementations, MultiTaskTimeSeriesModel
-from validyna.models.task_modules import SliceClassifier, SliceFeaturizer, SliceForecaster, SliceModule
+from validyna.models.task_modules import SliceClassifier, SliceFeaturizer, SliceForecaster, SliceModule, SliceHybrid
 
 task_registry: dict[str, Type[SliceModule]] = dict()
 model_registry: dict[str, Type[MultiTaskTimeSeriesModel]] = dict()
@@ -32,6 +32,7 @@ for Model in all_implementations:
 register_task('classification', SliceClassifier)
 register_task('featurization', SliceFeaturizer)
 register_task('forecasting', SliceForecaster)
+register_task('all', SliceHybrid)
 
 register_metric('ClassSensitivitySpecificity', ClassSensitivitySpecificity)
 register_metric('ClassFeatureSTD', ClassFeatureSTD)
