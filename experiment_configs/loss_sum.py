@@ -16,6 +16,6 @@ def get_config():
         for p in [1 / 3, 0.5, 2 / 3, 0.8]
     ]))
 
-    cfg.models = filter(lambda t: t[0] == 'GRU', cfg.models)
+    cfg.models = list(filter(lambda t: t[0] == 'GRU', cfg.models))
 
     return cfg
