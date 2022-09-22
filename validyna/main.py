@@ -69,6 +69,8 @@ def run_model_training(
             model_dir = model_at.download(os.path.join(cfg.results_dir, cfg.project, restore_run_name))
             model.load_state_dict(torch.load(os.path.join(model_dir, 'model.h5')))
         trainer_kwargs['logger'] = wandb_logger
+        if 'loss_coefficients' in run_cfg:
+            cfg['loss_coefficients'] = run_cfg.loss_coefficients
     module = task_registry[task](model=model, datasets=datasets, cfg=cfg)
 
     if run_cfg.get('freeze_featurizer', default=False):
